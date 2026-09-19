@@ -1,0 +1,1859 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kalevala TCG V1 — Stage 18R.14 responseActor Repair</title>
+<style>
+:root{--paper:#e5d5ad;--ink:#12130f;--gold:#b18a43;--ice:#7895aa;--warm:#826331;--danger:#b7d4e8}
+*{box-sizing:border-box}body{margin:0;background:#090c0c;color:var(--paper);font-family:Georgia,serif;overflow:hidden}button{font:inherit}
+#app{height:100dvh;display:grid;grid-template-rows:34% 15% 51%;background:linear-gradient(#101d27,#111516 40%,#241c0d)}
+.side{padding:7px 10px;display:grid;gap:6px;min-height:0}.opp{grid-template-columns:12% 19% 1fr 17%;border-bottom:1px solid #547083}.you{grid-template-columns:15% 1fr 23%;border-top:1px solid #9b793b}
+.panel{border:1px solid #77694b;background:#0b0f0ee8;border-radius:8px;padding:6px;min-width:0;min-height:0}.opp .panel{border-color:#49687b}.you .panel{border-color:#8f7138}
+h3{font-size:10px;letter-spacing:.13em;margin:0 0 4px;text-transform:uppercase}.hud{font-size:11px}.value{font-size:20px;color:#d4ad60}
+.row{display:flex;gap:5px;overflow:auto;height:calc(100% - 16px)}.card{position:relative;flex:0 0 72px;aspect-ratio:63/88;border:1px solid #958056;border-radius:5px;background:linear-gradient(#293028,#111512);color:var(--paper);padding:5px;font-size:8px;text-align:left;overflow:hidden}.opp .card{flex-basis:51px;font-size:6px}.card.legal{outline:2px solid #d5b260}.card.legendary{box-shadow:inset 0 0 0 2px var(--gold)}.cost{position:absolute;right:4px;top:3px}.stats{position:absolute;bottom:3px;left:4px}.status{position:absolute;bottom:3px;right:3px;font-size:7px}.quest{flex-basis:110px;aspect-ratio:1.45}.frozen{filter:saturate(.4);box-shadow:inset 0 0 0 2px var(--ice)}
+.shared{display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:7px;padding:6px 10px;background:#090d0de8;text-align:center}.track{display:flex;justify-content:center;gap:5px}.pip{width:23px;height:23px;border:1px solid #91764d;border-radius:50%;display:grid;place-items:center;font-size:10px}.pip.on{background:#8f7138;color:#111}.shards{display:flex;justify-content:center;gap:8px}.shard{border:1px solid #77694b;border-radius:50%;width:36px;height:36px;display:grid;place-items:center;font-size:7px}.owned{box-shadow:0 0 0 2px #c6a357}
+.localmain{display:grid;grid-template-rows:1fr 39px 105px;min-height:0}#actions{display:flex;gap:5px;overflow:auto}#actions button{background:#17150f;color:#eadab7;border:1px solid #a07a36;border-radius:5px;padding:5px 8px;white-space:nowrap}.continue{font-weight:bold;font-size:14px;background:#b18a43!important;color:#090c0c!important;border:2px solid #ead08d!important}.diag{font:10px monospace;padding:3px 6px;border:1px solid #77694b;border-radius:4px;white-space:nowrap}
+#hand{display:flex;gap:4px;justify-content:center;overflow:auto}.detail{position:fixed;inset:8% 12%;z-index:5;background:#11150ff5;border:2px solid #a38245;border-radius:12px;padding:18px;display:none;overflow:auto}.detail.open{display:block}.detail h2{color:#d2aa59}.close{float:right}
+.turn{font-size:11px;opacity:.85}.runes{display:flex;flex-wrap:wrap;gap:3px}.rune{font-size:8px;border:1px solid #6d634d;border-radius:9px;padding:2px 5px}
+@media(max-width:900px){.opp{grid-template-columns:14% 1fr 19%}.opp>.minor{display:none}.you{grid-template-columns:16% 1fr 23%}.card{flex-basis:66px}.quest{flex-basis:96px}.detail{inset:5%}}
+.card:focus{outline:2px solid #ead08d}#actions:empty:after{content:"Tap a highlighted card to see its legal actions";font-size:10px;opacity:.65}#playtest-controls{position:fixed;z-index:8;top:5px;left:50%;transform:translateX(-50%);display:flex;gap:5px;align-items:center;background:#090d0ded;border:1px solid #77694b;border-radius:8px;padding:5px;font-size:10px}#playtest-controls select,#playtest-controls button{background:#17150f;color:#eadab7;border:1px solid #8f7138;border-radius:4px;padding:3px}#playtest-controls details{max-width:280px}#ui-log{max-height:150px;overflow:auto;padding:4px;background:#0a0b09}#endgame{display:none;position:fixed;inset:0;z-index:20;background:#080a08d9;place-items:center;text-align:center}#endgame.open{display:grid}#endgame>div{background:#17150f;border:2px solid #b18a43;padding:28px;border-radius:12px} @media(max-width:700px){#playtest-controls{left:4px;right:4px;transform:none;flex-wrap:wrap}} </style></head><body><aside id="playtest-controls"><select id="human-faction"><option>Kalevala</option><option>Pohjola</option></select><select id="starter"><option>Kalevala</option><option>Pohjola</option></select><button id="new-game">New Game</button><button id="retry-ai">Retry AI</button><b id="ai-state">Ready</b><span id="diag" class="diag">boot</span><details><summary>Game log</summary><div id="ui-log"></div></details></aside><div id="endgame"><div><h1 class="result">Game complete</h1><button id="restart">Play again</button></div></div><div id="app"><section id="opp" class="side opp"></section><section class="shared"><div class="panel"><h3>Conflict</h3><div id="conflict" class="track"></div></div><div class="panel"><h3>Sampo — Shared Saga</h3><div id="sampo"></div></div><div class="panel"><h3>Shards</h3><div id="shards" class="shards"></div></div></section><section id="you" class="side you"></section></div><div id="detail" class="detail"></div><script>
+(function(){'use strict';const __mods=Object.create(null);
+__mods["kalevala_v1_stage16a_contract.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16A deterministic digital contract
+   Architecture scaffold. Does not replace the locked 15J.1 gameplay build yet. */
+const ENGINE_VERSION='16A-DETERMINISTIC-CONTRACT';
+const PHASES=Object.freeze(['DAWN','GAIN_VAKE','DRAW','MAIN','BATTLE','END']);
+const ACTIONS=Object.freeze(['PLAY_CARD','USE_ABILITY','ATTACK_CHARACTER','ATTACK_RESOLVE','RAID','INTERCEPT','PASS_INTERCEPT','CROSS_BACK','ADVANCE_FORGE','CLAIM_SHARD','DECLARE_EPIC','INTERRUPT','ABANDON_QUEST','END_PHASE']);
+
+function xmur3(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++)h=Math.imul(h^str.charCodeAt(i),3432918353),h=h<<13|h>>>19;return function(){h=Math.imul(h^h>>>16,2246822507);h=Math.imul(h^h>>>13,3266489909);return (h^=h>>>16)>>>0}}
+function mulberry32(a){return function(){let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return ((t^t>>>14)>>>0)/4294967296}}
+function makeRng(seed='kalevala'){const seedFn=xmur3(String(seed));const rand=mulberry32(seedFn());return {seed:String(seed),float:()=>rand(),int:n=>Math.floor(rand()*n)}}
+function shuffle(items,rng){const a=[...items];for(let i=a.length-1;i>0;i--){const j=rng.int(i+1);[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function createInitialState({seed='kalevala',startingPlayer=null}={}){
+ const rng=makeRng(seed); const active=startingPlayer??rng.int(2);
+ return {engineVersion:ENGINE_VERSION,seed:String(seed),revision:0,turn:1,active,phase:0,winner:null,route:null,
+   sampo:{state:'UNFORGED',controller:null},conflict:0,shards:{Living:null,Waters:null,Tuonela:null},
+   pending:null,choice:null,interrupt:null,eventLog:[],actionLog:[]};
+}
+function canonicalAction(a){if(!a||typeof a!=='object'||!a.type)throw new Error('Action requires type');if(!ACTIONS.includes(a.type))throw new Error('Unknown action '+a.type);return JSON.parse(JSON.stringify(a))}
+function recordAction(state,actor,action){const a=canonicalAction(action);return {...state,revision:state.revision+1,actionLog:[...state.actionLog,{revision:state.revision+1,turn:state.turn,actor,action:a}]}}
+function publicView(state,viewer){const s=structuredClone(state);if(s.players){s.players.forEach((p,i)=>{if(i!==viewer){p.handCount=p.hand?.length??p.handCount??0;delete p.hand;if(Array.isArray(p.deck)){p.deckCount=p.deck.length;delete p.deck}}})}return s}
+function serializeReplay(state){return JSON.stringify({engineVersion:state.engineVersion,seed:state.seed,actions:state.actionLog.map(x=>({actor:x.actor,action:x.action}))},null,2)}
+function replay({seed,actions},adapter){let state=adapter.newGame({seed});for(const step of actions){const legal=adapter.legalActions(state,step.actor);const wanted=JSON.stringify(step.action);const found=legal.find(a=>JSON.stringify(a)===wanted);if(!found)throw new Error(`Replay divergence at action ${state.actionLog?.length??0}: ${wanted}`);state=adapter.applyAction(state,step.actor,found)}return state}
+function stableSnapshot(value){const sort=v=>Array.isArray(v)?v.map(sort):v&&typeof v==='object'?Object.fromEntries(Object.keys(v).sort().map(k=>[k,sort(v[k])])):v;return JSON.stringify(sort(value))}
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["PHASES"]=PHASES;
+__exports["ACTIONS"]=ACTIONS;
+__exports["xmur3"]=xmur3;
+__exports["mulberry32"]=mulberry32;
+__exports["makeRng"]=makeRng;
+__exports["shuffle"]=shuffle;
+__exports["createInitialState"]=createInitialState;
+__exports["canonicalAction"]=canonicalAction;
+__exports["recordAction"]=recordAction;
+__exports["publicView"]=publicView;
+__exports["serializeReplay"]=serializeReplay;
+__exports["replay"]=replay;
+__exports["stableSnapshot"]=stableSnapshot;
+return __exports;})();
+__mods["kalevala_v1_stage16b_state_model.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16B authoritative deterministic state model
+   Parallel architecture branch. Stage 15J.1 remains the frozen playable fallback. */
+const {ENGINE_VERSION:CONTRACT_VERSION,PHASES,ACTIONS,makeRng,shuffle,stableSnapshot}=__mods["kalevala_v1_stage16a_contract.mjs"];
+const ENGINE_VERSION='16B-AUTHORITATIVE-STATE';
+const FACTIONS=Object.freeze(['Kalevala','Pohjola']);
+const CONTROLLERS=Object.freeze(['HUMAN','AI']);
+const C=(name,cost,type,power=0,health=0,fortitude=0,text='')=>Object.freeze({name,cost,type,power,health,fortitude,text});
+const CARD_LIBRARY=Object.freeze({
+'Väinämöinen':C('Väinämöinen',5,'Legendary Character',5,6,0,'First Song during your turn costs 1 less. Quest complete: draw 1.'),'Ilmarinen':C('Ilmarinen',4,'Legendary Character',6,6,0,'First Forge each turn costs 1 less.'),'Lemminkäinen':C('Lemminkäinen',4,'Legendary Character',7,4,0,'+2 Power while Raiding a Location.'),'Great Eagle':C('Great Eagle',2,'Character',3,2,0,'Exhaust: prevent 1 damage to another Character.'),"Lemminkäinen's Mother":C("Lemminkäinen's Mother",3,'Character',2,4,0,"Mother's Search; first Cross Back each turn costs 1 less."),'Kantele':C('Kantele',3,'Legendary Relic',0,0,0,'First Song each turn: Look top 2; may reveal a Song to hand; rest bottom.'),"Kullervo's Sword":C("Kullervo's Sword",3,'Relic',0,0,0,'Equipped Character +2 Power; after it attacks deal 1 to it.'),"Smith's Tools":C("Smith's Tools",1,'Relic',0,0,0,'Destroy: next Relic play/Forge this turn costs 1 less. If Forge, Look top card leave/bottom.'),"Traveler's Provisions":C("Traveler's Provisions",1,'Event',0,0,0,'Gain +2 temporary Väke.'),'Protective Charm':C('Protective Charm',1,'Event',0,0,0,'Choose Character; prevent next 2 damage this turn.'),'Song of Binding':C('Song of Binding',2,'Song',0,0,0,'Exhaust target; it does not ready next Dawn.'),'Väinölä':C('Väinölä',3,'Location',0,0,6,'Once/turn after Song restore 1 Health to your Character.'),"Ilmarinen's Smithy":C("Ilmarinen's Smithy",3,'Location',0,0,6,'First Relic/turn: Look top card leave/bottom.'),
+'Louhi':C('Louhi',5,'Legendary Character',4,7,0,'First opposing Forge or Shard Claim each turn costs +1.'),'Pohjola Maiden':C('Pohjola Maiden',3,'Character',3,4,0,'Enter: Look top 3; may reveal Relic/Location to hand; rest bottom.'),"Hiisi's Elk":C("Hiisi's Elk",3,'Character',4,3,0,'+2 Power Raiding Locations; successful Location Raid if survives deals +1 Fortitude damage.'),'Ice-Witch':C('Ice-Witch',2,'Character',2,3,0,'Questwatch Interrupt after opposing Quest Advances, Exhaust: Freeze Quest.'),'Frost Charm':C('Frost Charm',1,'Event',0,0,0,'Interrupt after opposing Quest Advances: Freeze Quest.'),'Hidden Storehouse':C('Hidden Storehouse',2,'Relic',0,0,0,'Store/release 1 Väke. Max 1.'),'Pohjola Fortress':C('Pohjola Fortress',4,'Location',0,0,9,'First time/turn your Character intercepts Raid, prevent 1 combat damage.'),'Frost of Pohjola':C('Frost of Pohjola',2,'Weather',0,0,0,'First Character each player plays before your next Dawn enters exhausted.'),'Chains of Pohjola':C('Chains of Pohjola',2,'Event',0,0,0,'Interrupt when Character with Death Mark would Cross Back: cannot this turn.'),'Gates of Pohjola':C('Gates of Pohjola',3,'Location',0,0,7,'First opposing Character to declare Raid each turn gets -2 Power for that Raid.')});
+const DECKLISTS=Object.freeze({
+Kalevala:['Väinämöinen','Väinämöinen','Ilmarinen','Lemminkäinen','Lemminkäinen','Great Eagle','Great Eagle','Great Eagle',"Lemminkäinen's Mother",'Kantele',"Kullervo's Sword","Smith's Tools","Smith's Tools","Traveler's Provisions","Traveler's Provisions","Traveler's Provisions",'Protective Charm','Song of Binding','Song of Binding','Song of Binding','Väinölä','Väinölä',"Ilmarinen's Smithy","Ilmarinen's Smithy"],
+Pohjola:['Louhi','Louhi','Pohjola Maiden','Pohjola Maiden','Pohjola Maiden',"Hiisi's Elk","Hiisi's Elk","Hiisi's Elk",'Ice-Witch','Ice-Witch','Ice-Witch','Frost Charm','Frost Charm','Frost Charm',"Traveler's Provisions","Traveler's Provisions",'Hidden Storehouse','Hidden Storehouse','Pohjola Fortress','Pohjola Fortress','Frost of Pohjola','Chains of Pohjola','Gates of Pohjola','Gates of Pohjola']});
+const QUESTS=Object.freeze({Kalevala:['Missing Words','Smith’s Trial v2','Catching the Great Pike','Journey toward Tuonela','Deed of the Hunter'],Pohjola:["Hunt Hiisi’s Elk",'Secrets of Pohjola','Journey toward Tuonela','Journey to the North','Treasures of Pohjola']});
+function instance(faction,name,n){const d=CARD_LIBRARY[name];if(!d)throw new Error('Unknown card '+name);return {id:`${faction[0]}-${String(n).padStart(2,'0')}`,owner:faction,controller:faction,name,zone:'DECK',ready:false,arrival:false,damage:0,fortitudeDamage:0,deathMarks:0,attachedTo:null,counters:{}}}
+function buildDeck(faction){if(!FACTIONS.includes(faction))throw new Error('Unknown faction');return DECKLISTS[faction].map((n,i)=>instance(faction,n,i+1))}
+function player(faction,controller,deck,quests){return {faction,controller,resolve:25,vake:0,tempVake:0,deck,hand:[],living:[],tuonela:[],memory:[],relics:[],location:null,questDeck:quests,quests:[],runes:[],shards:[],forge:0,flags:{}}}
+function newGame({seed='kalevala',controllers={Kalevala:'HUMAN',Pohjola:'AI'},startingFaction=null,openingHand=5}={}){
+ for(const f of FACTIONS)if(!CONTROLLERS.includes(controllers[f]))throw new Error(`Invalid controller for ${f}`);
+ const rng=makeRng(seed), kDeck=shuffle(buildDeck('Kalevala'),rng), pDeck=shuffle(buildDeck('Pohjola'),rng), kQ=shuffle([...QUESTS.Kalevala],rng),pQ=shuffle([...QUESTS.Pohjola],rng);
+ const active=startingFaction==null?rng.int(2):FACTIONS.indexOf(startingFaction);if(active<0)throw new Error('Invalid startingFaction');
+ const players=[player('Kalevala',controllers.Kalevala,kDeck,kQ),player('Pohjola',controllers.Pohjola,pDeck,pQ)];
+ for(const p of players){for(let n=0;n<openingHand;n++){const c=p.deck.shift();c.zone='HAND';p.hand.push(c)}p.quests=p.questDeck.splice(0,2).map(name=>({name,stage:0,frozen:false,completed:false}));}
+ return {engineVersion:ENGINE_VERSION,contractVersion:CONTRACT_VERSION,seed:String(seed),revision:0,turn:1,active,phase:0,players,sampo:{state:'UNFORGED',controller:null,lastBenefit:[null,null]},conflict:0,shards:{Living:null,Waters:null,Tuonela:null},pending:null,choice:null,interrupt:null,winner:null,route:null,eventLog:[`T1 Match begins. Opening hand = provisional digital-alpha ${openingHand}.`,`T1 ${players[active].faction} is starting player.`],actionLog:[]};
+}
+function factionIndex(state,faction){return state.players.findIndex(p=>p.faction===faction)}
+function controllerOf(state,faction){return state.players[factionIndex(state,faction)]?.controller??null}
+function publicView(state,viewerFaction){const s=structuredClone(state),vi=factionIndex(s,viewerFaction);if(vi<0)throw new Error('Unknown viewer faction');s.players.forEach((p,i)=>{if(i!==vi){p.handCount=p.hand.length;p.deckCount=p.deck.length;delete p.hand;delete p.deck;}});return s}
+function validateState(s){const e=[];if(s.players?.length!==2)e.push('players');for(const f of FACTIONS){const p=s.players?.find(x=>x.faction===f);if(!p)e.push('missing '+f);else{const ids=[...p.deck,...p.hand,...p.living,...p.tuonela,...p.memory,...p.relics,...(p.location?[p.location]:[])].map(x=>x.id);if(new Set(ids).size!==ids.length)e.push('duplicate instance '+f);if(!CONTROLLERS.includes(p.controller))e.push('controller '+f)}}if(!PHASES[s.phase])e.push('phase');return e}
+function stateDigest(s){return stableSnapshot({seed:s.seed,active:s.active,phase:s.phase,players:s.players.map(p=>({faction:p.faction,controller:p.controller,deck:p.deck.map(c=>c.id+':'+c.name),hand:p.hand.map(c=>c.id+':'+c.name),quests:p.quests})),sampo:s.sampo,conflict:s.conflict,shards:s.shards});}
+
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["FACTIONS"]=FACTIONS;
+__exports["CONTROLLERS"]=CONTROLLERS;
+__exports["CARD_LIBRARY"]=CARD_LIBRARY;
+__exports["DECKLISTS"]=DECKLISTS;
+__exports["QUESTS"]=QUESTS;
+__exports["buildDeck"]=buildDeck;
+__exports["newGame"]=newGame;
+__exports["factionIndex"]=factionIndex;
+__exports["controllerOf"]=controllerOf;
+__exports["publicView"]=publicView;
+__exports["validateState"]=validateState;
+__exports["stateDigest"]=stateDigest;
+__exports["PHASES"]=PHASES;
+__exports["ACTIONS"]=ACTIONS;
+return __exports;})();
+__mods["kalevala_v1_stage16c_legal_actions.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16C authoritative legalActions()
+   Pure legality layer over 16B state. It does not resolve actions yet. */
+const {PHASES,ACTIONS,CARD_LIBRARY,FACTIONS,factionIndex}=__mods["kalevala_v1_stage16b_state_model.mjs"];
+const ENGINE_VERSION='16C-AUTHORITATIVE-LEGAL-ACTIONS';
+const A=(type,extra={})=>Object.freeze({type,...extra});
+const other=i=>1-i;
+const totalVake=p=>(p.vake||0)+(p.tempVake||0);
+const isChar=c=>/Character/.test(CARD_LIBRARY[c.name]?.type||'');
+const isRelic=c=>/Relic/.test(CARD_LIBRARY[c.name]?.type||'');
+const isLocation=c=>CARD_LIBRARY[c.name]?.type==='Location';
+const isEventLike=c=>['Event','Song','Weather'].includes(CARD_LIBRARY[c.name]?.type);
+const availableCost=(s,pi,c)=>Math.max(0,(CARD_LIBRARY[c.name]?.cost||0)+louhiTax(s,pi,c));
+function louhiTax(s,pi,c){ // Louhi taxes Forge/Shard, not ordinary card play.
+ return 0;
+}
+function activePlayer(s){return s.players[s.active]}
+function actorIndex(s,actor){if(typeof actor==='number')return actor;if(FACTIONS.includes(actor))return factionIndex(s,actor);return -1}
+function canActBase(s,pi){return !s.winner && pi>=0 && pi<2}
+function canAttack(c){return isChar(c)&&c.ready&&!c.arrival&&!c.frozen&&!c.attackedThisBattle}
+function forgeCost(s,pi){const p=s.players[pi],opp=s.players[other(pi)];let cost=p.forge===0?1:p.forge===1?2:3;if(p.living.some(c=>c.name==='Ilmarinen')&&!p.flags?.ilmarinenForgeDiscountUsed)cost--;if(p.flags?.toolsDiscount)cost--;if(opp.living.some(c=>c.name==='Louhi')&&!opp.flags?.louhiTaxUsed)cost++;return Math.max(0,cost)}
+function shardCost(s,pi){const opp=s.players[other(pi)];return 1+(opp.living.some(c=>c.name==='Louhi')&&!opp.flags?.louhiTaxUsed?1:0)}
+function distinctRunes(p){return new Set(p.runes).size}
+function eligibleLegendary(p){return p.living.some(c=>c.ready&&!c.frozen&&/Legendary Character/.test(CARD_LIBRARY[c.name]?.type||''))}
+function playActions(s,pi){const p=s.players[pi],out=[];for(const c of p.hand){const d=CARD_LIBRARY[c.name];if(!d)continue;const cost=availableCost(s,pi,c);if(totalVake(p)<cost)continue;if(d.type==='Location'&&p.location&&p.location.id===c.id)continue;out.push(A('PLAY_CARD',{cardId:c.id,cost}));}return out}
+function abilityActions(s,pi){const p=s.players[pi],out=[];for(const c of [...p.living,...p.relics,...(p.location?[p.location]:[])]){if(c.name==='Great Eagle'&&c.ready)out.push(A('USE_ABILITY',{sourceId:c.id,ability:'PREVENT_1'}));if(c.name==='Hidden Storehouse'&&c.ready&&(c.counters?.stored||0)<1&&p.tempVake>0)out.push(A('USE_ABILITY',{sourceId:c.id,ability:'STORE_VAKE'}));if(c.name==='Hidden Storehouse'&&(c.counters?.stored||0)>0)out.push(A('USE_ABILITY',{sourceId:c.id,ability:'RELEASE_VAKE'}));if(c.name==="Smith's Tools")out.push(A('USE_ABILITY',{sourceId:c.id,ability:'TOOLS_DISCOUNT'}));}return out}
+function battleActions(s,pi){const p=s.players[pi],op=s.players[other(pi)],out=[];for(const c of p.living.filter(canAttack)){for(const t of op.living)out.push(A('ATTACK_CHARACTER',{attackerId:c.id,targetId:t.id}));out.push(A('ATTACK_RESOLVE',{attackerId:c.id,targetFaction:op.faction}));if(op.location)out.push(A('RAID',{attackerId:c.id,targetType:'LOCATION',targetId:op.location.id}));if(s.sampo.state==='FORGED'&&s.sampo.controller===op.faction&&distinctRunes(p)>=2&&totalVake(p)>=3)out.push(A('RAID',{attackerId:c.id,targetType:'SAMPO'}));}return out}
+function crossBackActions(s,pi){const p=s.players[pi],discount=p.living.some(c=>c.name==="Lemminkäinen's Mother")&&!p.flags?.motherCrossBackDiscountUsed?1:0,out=[];for(const c of p.tuonela){if(!isChar(c)||c.crossBackBlocked)continue;const cost=Math.max(0,3+(c.deathMarks||0)-discount);if(totalVake(p)>=cost)out.push(A('CROSS_BACK',{cardId:c.id,cost}));}return out}
+function forgeActions(s,pi){const p=s.players[pi];if(s.sampo.state!=='UNFORGED'||p.forge>=3||p.flags?.forgedThisTurn||distinctRunes(p)<2)return[];const cost=forgeCost(s,pi);return totalVake(p)>=cost?[A('ADVANCE_FORGE',{cost,step:p.forge+1})]:[]}
+function shardActions(s,pi){if(s.sampo.state!=='SHATTERED')return[];const p=s.players[pi],cost=shardCost(s,pi),out=[];if(totalVake(p)<cost)return out;if(s.shards.Living==null&&p.living.some(c=>c.ready&&!c.frozen))out.push(A('CLAIM_SHARD',{shard:'Living',cost}));if(s.shards.Waters==null&&p.living.some(c=>c.journeyed))out.push(A('CLAIM_SHARD',{shard:'Waters',cost}));if(s.shards.Tuonela==null&&p.tuonela.some(c=>isChar(c)&&c.ready&&!c.frozen))out.push(A('CLAIM_SHARD',{shard:'Tuonela',cost}));return out}
+function epicActions(s,pi){const p=s.players[pi];if(s.sampo.state!=='SHATTERED'||p.shards.length<2||distinctRunes(p)<3||!eligibleLegendary(p)||totalVake(p)<2)return[];return[A('DECLARE_EPIC',{cost:2})]}
+function pendingActions(s,pi){const p=s.players[pi];if(s.choice){if(s.choice.actor!==pi)return[];return (s.choice.options||[]).map((o,i)=>A('USE_ABILITY',{choiceId:s.choice.id,option:i,value:o}));}
+ if(s.interrupt){if(s.interrupt.actor!==pi)return[];const out=[];for(const x of s.interrupt.options||[])out.push(A('INTERRUPT',x));out.push(A('PASS_INTERCEPT',{window:'INTERRUPT'}));return out;}
+ if(s.pending?.type==='INTERCEPT'){if(s.pending.defender!==pi)return[];const out=p.living.filter(c=>c.ready&&!c.frozen).map(c=>A('INTERCEPT',{cardId:c.id}));out.push(A('PASS_INTERCEPT'));return out;}return null}
+function legalActions(state,actor){const pi=actorIndex(state,actor);if(!canActBase(state,pi))return[];const forced=pendingActions(state,pi);if(forced!==null)return forced;if(pi!==state.active)return[];const phase=PHASES[state.phase],out=[];
+ if(['DAWN','GAIN_VAKE','DRAW','END'].includes(phase))return[A('END_PHASE')];
+ if(phase==='MAIN')out.push(...playActions(state,pi),...abilityActions(state,pi),...crossBackActions(state,pi),...forgeActions(state,pi),...shardActions(state,pi),...epicActions(state,pi),A('END_PHASE'));
+ if(phase==='BATTLE')out.push(...battleActions(state,pi),A('END_PHASE'));
+ return out;
+}
+function isLegal(state,actor,action){const key=JSON.stringify(action);return legalActions(state,actor).some(a=>JSON.stringify(a)===key)}
+
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["legalActions"]=legalActions;
+__exports["isLegal"]=isLegal;
+__exports["ACTIONS"]=ACTIONS;
+__exports["PHASES"]=PHASES;
+return __exports;})();
+__mods["kalevala_v1_stage16d_apply_action.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16D authoritative applyAction()
+   Deterministic execution kernel over the 16B state + 16C legality layer.
+   Scope: phase flow, resource payment, core permanent/event play, Cross Back,
+   basic combat/Resolve/Location raids + intercepts, Forge, Shards and Epic declaration.
+   Card-specific triggered/replacement parity continues in later Stage-16 passes. */
+const {CARD_LIBRARY,FACTIONS,factionIndex}=__mods["kalevala_v1_stage16b_state_model.mjs"];
+const {legalActions,isLegal,PHASES}=__mods["kalevala_v1_stage16c_legal_actions.mjs"];
+const ENGINE_VERSION='16D-AUTHORITATIVE-APPLY-ACTION';
+const other=i=>1-i;
+const clone=s=>structuredClone(s);
+const log=(s,msg)=>s.eventLog.push(`T${s.turn} ${msg}`);
+const cardDef=c=>CARD_LIBRARY[c.name];
+const isChar=c=>/Character/.test(cardDef(c)?.type||'');
+function actorIndex(s,a){return typeof a==='number'?a:FACTIONS.includes(a)?factionIndex(s,a):-1}
+function pay(p,n){let left=n;const t=Math.min(p.tempVake,left);p.tempVake-=t;left-=t;p.vake-=left;if(p.vake<0)throw new Error('Negative Väke');}
+function findRemove(arr,id){const i=arr.findIndex(c=>c.id===id);if(i<0)return null;return arr.splice(i,1)[0]}
+function living(s,id){for(let pi=0;pi<2;pi++){const c=s.players[pi].living.find(x=>x.id===id);if(c)return {pi,c}}return null}
+function defeat(s,pi,c){const p=s.players[pi];findRemove(p.living,c.id);c.zone='TUONELA';c.ready=false;c.arrival=false;c.damage=0;c.journeyed=false;p.tuonela.push(c);log(s,`${c.name} [#${c.id}] Crosses Down to Tuonela.`)}
+function checkDefeats(s){for(let pi=0;pi<2;pi++)for(const c of [...s.players[pi].living])if(c.damage>=cardDef(c).health)defeat(s,pi,c)}
+function checkConquest(s){const dead=s.players.map(p=>p.resolve<=0);if(dead[0]&&dead[1]){s.winner='DRAW';s.route='DRAW';return}if(dead[0]){s.winner=s.players[1].faction;s.route='Conquest'}else if(dead[1]){s.winner=s.players[0].faction;s.route='Conquest'}}
+function record(s,pi,a){s.revision++;s.actionLog.push({revision:s.revision,turn:s.turn,actor:s.players[pi].faction,action:structuredClone(a)})}
+function endPhase(s,pi){const phase=PHASES[s.phase],p=s.players[pi];
+ if(phase==='DAWN'){for(const c of [...p.living,...p.relics,...(p.location?[p.location]:[])]){if(!c.frozen)c.ready=true;c.attackedThisBattle=false;c.arrival=false;}log(s,`${p.faction} Dawn.`)}
+ if(phase==='GAIN_VAKE'){p.vake=Math.min(10,p.vake+1);log(s,`${p.faction} gains 1 Väke.`)}
+ if(phase==='DRAW'){const starting=(s.turn===1&&pi===s.active&&s.actionLog.filter(x=>x.action.type==='END_PHASE'&&x.action.phase==='DRAW').length===0);if(starting)log(s,`${p.faction} skips first Dawn draw.`);else if(p.deck.length){const c=p.deck.shift();c.zone='HAND';p.hand.push(c);log(s,`${p.faction} draws a card.`)}}
+ if(phase==='MAIN'){for(const c of p.living)if(c.journeyExpiresTurn===s.turn){c.journeyed=false;delete c.journeyExpiresTurn;}}
+ if(phase==='END'){p.tempVake=0;if(p.hand.length>7){/* explicit discard choice is later parity work */}s.active=other(pi);if(s.active===0)s.turn++;s.phase=0;return}
+ s.phase++;
+}
+function playCard(s,pi,a){const p=s.players[pi],c=findRemove(p.hand,a.cardId);if(!c)throw new Error('Card missing from hand');pay(p,a.cost);const d=cardDef(c);log(s,`${p.faction} plays ${c.name}.`);
+ if(isChar(c)){c.zone='LIVING';c.ready=true;c.arrival=true;p.living.push(c)}
+ else if(d.type==='Relic'||d.type==='Legendary Relic'){c.zone='RELICS';c.ready=true;p.relics.push(c)}
+ else if(d.type==='Location'){if(p.location){p.location.zone='MEMORY';p.memory.push(p.location)}c.zone='LOCATION';c.ready=true;p.location=c}
+ else {c.zone='MEMORY';p.memory.push(c);if(c.name==="Traveler's Provisions")p.tempVake+=2;}
+}
+function crossBack(s,pi,a){const p=s.players[pi],c=findRemove(p.tuonela,a.cardId);pay(p,a.cost);c.zone='LIVING';c.ready=false;c.arrival=false;c.damage=Math.floor(cardDef(c).health/2);c.deathMarks=(c.deathMarks||0)+1;p.living.push(c);log(s,`${c.name} Crosses Back.`)}
+function beginAttack(s,pi,a){const p=s.players[pi],op=s.players[other(pi)],att=p.living.find(c=>c.id===a.attackerId);att.ready=false;att.attackedThisBattle=true;
+ if(a.type==='ATTACK_CHARACTER'){const t=op.living.find(c=>c.id===a.targetId);log(s,`${att.name} [#${att.id}] battles ${t.name} [#${t.id}].`);att.damage+=cardDef(t).power;t.damage+=cardDef(att).power;checkDefeats(s);return}
+ s.pending={type:'INTERCEPT',attackerId:att.id,attacker:pi,defender:other(pi),attack:structuredClone(a)};log(s,`${att.name} [#${att.id}] declares ${a.type==='ATTACK_RESOLVE'?'an attack on Resolve':'a Raid'}.`)
+}
+function resolveUnintercepted(s){const q=s.pending,att=s.players[q.attacker].living.find(c=>c.id===q.attackerId);if(!att){s.pending=null;return}const op=s.players[q.defender];const power=cardDef(att).power;
+ if(q.attack.type==='ATTACK_RESOLVE'){op.resolve-=power;att.journeyed=true;att.journeyExpiresTurn=s.turn+1;log(s,`${att.name} hits Resolve for ${power}.`);checkConquest(s)}
+ else if(q.attack.targetType==='LOCATION'&&op.location){op.location.fortitudeDamage=(op.location.fortitudeDamage||0)+power;att.journeyed=true;att.journeyExpiresTurn=s.turn+1;log(s,`${att.name} Raids ${op.location.name} for ${power}.`);if(op.location.fortitudeDamage>=cardDef(op.location).fortitude){const x=op.location;op.location=null;x.zone='MEMORY';op.memory.push(x);log(s,`${x.name} is destroyed.`)}}
+ else if(q.attack.targetType==='SAMPO'){pay(s.players[q.attacker],3);s.sampo.controller=s.players[q.attacker].faction;log(s,`${att.name} steals the Sampo.`)}
+ s.pending=null;
+}
+function intercept(s,pi,a){const q=s.pending,def=s.players[pi].living.find(c=>c.id===a.cardId),att=s.players[q.attacker].living.find(c=>c.id===q.attackerId);def.ready=false;if(att){att.damage+=cardDef(def).power;def.damage+=cardDef(att).power;log(s,`${def.name} intercepts ${att.name}.`);checkDefeats(s)}s.pending=null}
+function forge(s,pi,a){const p=s.players[pi];pay(p,a.cost);p.forge++;p.flags.forgedThisTurn=true;log(s,`${p.faction} advances Forge to ${p.forge}/3.`);if(p.forge===3){s.sampo.state='FORGED';s.sampo.controller=p.faction;s.conflict=0;log(s,`${p.faction} FORGES THE SAMPO!`)}}
+function claimShard(s,pi,a){const p=s.players[pi];pay(p,a.cost);if(a.shard==='Living'){const c=p.living.find(c=>c.ready&&!c.frozen);c.ready=false}else if(a.shard==='Tuonela'){const c=p.tuonela.find(c=>isChar(c)&&c.ready&&!c.frozen);c.ready=false}s.shards[a.shard]=p.faction;p.shards.push(a.shard);log(s,`${p.faction} claims ${a.shard} Shard.`)}
+function epic(s,pi,a){const p=s.players[pi];pay(p,a.cost);const c=p.living.find(c=>c.ready&&!c.frozen&&/Legendary Character/.test(cardDef(c).type));c.ready=false;s.interrupt={actor:other(pi),kind:'FINAL_EPIC',declarer:pi,options:[]};log(s,`${p.faction} DECLARES EPIC ENDING — Final Interrupt opportunity opens.`)}
+function applyAction(state,actor,action){const pi=actorIndex(state,actor);if(!isLegal(state,actor,action))throw new Error(`Illegal action: ${JSON.stringify(action)}`);const s=clone(state);const executed=structuredClone(action);if(executed.type==='END_PHASE')executed.phase=PHASES[s.phase];record(s,pi,executed);
+ switch(action.type){case'END_PHASE':endPhase(s,pi);break;case'PLAY_CARD':playCard(s,pi,action);break;case'CROSS_BACK':crossBack(s,pi,action);break;case'ATTACK_CHARACTER':case'ATTACK_RESOLVE':case'RAID':beginAttack(s,pi,action);break;case'INTERCEPT':intercept(s,pi,action);break;case'PASS_INTERCEPT':if(s.interrupt?.kind==='FINAL_EPIC'){const d=s.interrupt.declarer;s.interrupt=null;s.winner=s.players[d].faction;s.route='Epic';log(s,`${s.winner} completes the EPIC ENDING!`)}else resolveUnintercepted(s);break;case'ADVANCE_FORGE':forge(s,pi,action);break;case'CLAIM_SHARD':claimShard(s,pi,action);break;case'DECLARE_EPIC':epic(s,pi,action);break;default:throw new Error(`16D resolver not implemented for ${action.type}`)}return s}
+
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["applyAction"]=applyAction;
+__exports["legalActions"]=legalActions;
+return __exports;})();
+__mods["kalevala_v1_stage16e_timing_engine.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16E authoritative timing/event engine
+   Deterministic timing kernel for atomic events, replacement/prevention,
+   queued triggers, game-ending checks, Conflict/Shatter ordering and interrupts.
+   This is a parallel Stage-16 module; 15J.1 remains the playable reference. */
+const ENGINE_VERSION='16E-AUTHORITATIVE-TIMING';
+const clone=x=>structuredClone(x);
+function makeTimingState(base={}){const s=clone(base);s.timing??={eventSeq:0,resolving:false,current:null,triggerQueue:[],replacementLog:[],interruptStack:[]};return s}
+function queueTrigger(s,trigger){s.timing.triggerQueue.push(clone(trigger));}
+function openInterrupt(s,window){if(s.timing.resolving) throw new Error('Cannot open ordinary interrupt during atomic resolution');s.timing.interruptStack.push(clone(window));}
+function closeInterrupt(s){return s.timing.interruptStack.pop()??null}
+function checkGameEnd(s){if(s.winner!=null)return s;const dead=(s.players||[]).map(p=>p.resolve<=0);const epic=s.pendingEpicWinner??null;if(dead.length>=2&&dead[0]&&dead[1]){s.winner='DRAW';s.route='DRAW';return s}if(epic&&dead.some(Boolean)){s.winner='DRAW';s.route='DRAW';return s}if(dead[0]){s.winner=s.players[1].faction;s.route='Conquest';return s}if(dead[1]){s.winner=s.players[0].faction;s.route='Conquest';return s}if(epic){s.winner=epic;s.route='Epic';delete s.pendingEpicWinner}return s}
+function applyReplacements(event,replacements,s){let e=clone(event);const used=new Set();for(const r of replacements){if(used.has(r.id))continue;if(r.applies(e,s)){e=r.apply(clone(e),s);used.add(r.id);s.timing.replacementLog.push({eventId:e.id,replacement:r.id});}}return e}
+function resolveAtomic(state,event,{replacements=[],effect,deriveTriggers=()=>[]}={}){const s=makeTimingState(state);if(s.timing.resolving)throw new Error('Nested atomic event resolution is not allowed');s.timing.resolving=true;const id=++s.timing.eventSeq;let e=applyReplacements({...clone(event),id},replacements,s);s.timing.current=clone(e);effect?.(s,e);const produced=deriveTriggers(s,e)||[];for(const t of produced)queueTrigger(s,t);s.timing.current=null;s.timing.resolving=false;checkGameEnd(s);return s}
+function resolveNextTrigger(state,resolver){const s=makeTimingState(state);if(s.winner!=null)return s;const t=s.timing.triggerQueue.shift();if(!t)return s;return resolveAtomic(s,{type:'TRIGGER',trigger:t},{effect:(x)=>resolver(x,t)});}
+function addConflictDeed(s,playerIndex,reason){s.conflictDeedTurn??={};const key=`${s.turn}:${playerIndex}`;if(s.conflictDeedTurn[key])return false;s.conflictDeedTurn[key]=true;s.conflict=Math.min(4,(s.conflict||0)+1);s.eventLog?.push(`T${s.turn} Conflict +1 (${reason}) → ${s.conflict}/4.`);if(s.conflict>=4)s.pendingSampoShatter=true;return true}
+function finishAction(state){const s=makeTimingState(state);checkGameEnd(s);if(s.winner!=null)return s;if(s.pendingSampoShatter){s.pendingSampoShatter=false;if(s.sampo?.state==='FORGED'){s.sampo.state='SHATTERED';s.sampo.controller=null;s.eventLog?.push(`T${s.turn} THE SAMPO SHATTERS!`);}}checkGameEnd(s);return s}
+function declareEpicPending(s,faction){s.pendingEpicWinner=faction}
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["makeTimingState"]=makeTimingState;
+__exports["queueTrigger"]=queueTrigger;
+__exports["openInterrupt"]=openInterrupt;
+__exports["closeInterrupt"]=closeInterrupt;
+__exports["checkGameEnd"]=checkGameEnd;
+__exports["resolveAtomic"]=resolveAtomic;
+__exports["resolveNextTrigger"]=resolveNextTrigger;
+__exports["addConflictDeed"]=addConflictDeed;
+__exports["finishAction"]=finishAction;
+__exports["declareEpicPending"]=declareEpicPending;
+return __exports;})();
+__mods["kalevala_v1_stage16f_quest_rune_engine.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16F authoritative Quest/Rune engine
+   Deterministic quest progression over the frozen V1 two-stage quest rules.
+   Standalone Journey phase does not exist; Journey remains a quest/status concept. */
+const ENGINE_VERSION='16F-AUTHORITATIVE-QUEST-RUNES';
+
+const QUEST_DEFS=Object.freeze({
+  'Missing Words':{faction:'Kalevala',rune:'Knowledge',stages:['SEEK','LEARN']},
+  'Smith’s Trial v2':{faction:'Kalevala',rune:'Creation',stages:['PREPARE','CREATE']},
+  'Catching the Great Pike':{faction:'Kalevala',rune:'Journey',stages:['VOYAGE','OVERCOME']},
+  'Journey toward Tuonela':{faction:'BOTH',rune:'Death',stages:['DESCEND','RETURN']},
+  'Deed of the Hunter':{faction:'Kalevala',rune:'Hunt',stages:['TRACK','MASTER']},
+  'Hunt Hiisi’s Elk':{faction:'Pohjola',rune:'Hunt',stages:['TRACK','MASTER']},
+  'Secrets of Pohjola':{faction:'Pohjola',rune:'Knowledge',stages:['CONCEAL','COMMAND']},
+  'Journey to the North':{faction:'Pohjola',rune:'Journey',stages:['DEPART','ARRIVE']},
+  'Treasures of Pohjola':{faction:'Pohjola',rune:'Creation',stages:['GATHER','PRESERVE']}
+});
+const clone=x=>structuredClone(x);
+const other=i=>1-i;
+const log=(s,m)=>s.eventLog?.push(`T${s.turn} ${m}`);
+const pidx=(s,f)=>s.players.findIndex(p=>p.faction===f);
+const quest=(s,pi,name)=>s.players[pi].quests.find(q=>q.name===name&&!q.completed);
+const cardName=(s,id)=>{for(const p of s.players)for(const z of ['deck','hand','living','tuonela','memory','relics']){const c=p[z]?.find(x=>x.id===id);if(c)return c.name}for(const p of s.players)if(p.location?.id===id)return p.location.name;return null};
+const activePermanentIds=p=>[...p.living,...p.relics,...(p.location?[p.location]:[])].map(c=>c.id);
+const relicLocationCount=p=>p.relics.length+(p.location?1:0);
+function award(s,pi,q,def){
+  q.completed=true;q.frozen=false;q.stage=2;
+  if(!s.players[pi].runes.includes(def.rune))s.players[pi].runes.push(def.rune);
+  log(s,`${s.players[pi].faction} completes ${q.name} and gains ${def.rune} Rune.`);
+}
+function advance(s,pi,q,meta={}){
+  if(q.frozen||q.completed)return false;
+  q.stage=1;q.stageTurn=s.turn;q.stageMeta=clone(meta);
+  log(s,`${s.players[pi].faction} advances Quest ${q.name}.`);
+  return true;
+}
+function laterTurn(q,s){return q.stageTurn!=null&&s.turn>q.stageTurn}
+function progress(s,pi,name,meta={}){
+  const q=quest(s,pi,name),def=QUEST_DEFS[name]; if(!q||q.frozen)return false;
+  if(q.stage===0)return advance(s,pi,q,meta);
+  if(q.stage===1){award(s,pi,q,def);return true}
+  return false;
+}
+function sameCard(q,id){return !!id&&q.stageMeta?.cardId===id}
+function survivedLiving(s,pi,id){return !!s.players[pi].living.find(c=>c.id===id)}
+function hasLouhiAndOtherReady(p){return p.living.some(c=>c.name==='Louhi')&&p.living.some(c=>c.name!=='Louhi'&&c.ready&&!c.frozen)}
+function processForPlayer(s,pi,e){
+  const p=s.players[pi],f=p.faction;
+  // Kalevala
+  if(f==='Kalevala'){
+    let q=quest(s,pi,'Missing Words');
+    if(q&&!q.frozen){
+      if(q.stage===0&&e.type==='SONG_RESOLVED'&&e.player===pi&&e.controlledReadyCharacter)advance(s,pi,q);
+      else if(q.stage===1&&laterTurn(q,s)&&e.player===pi&&((e.type==='SONG_RESOLVED')||(e.type==='RELIC_ABILITY_USED')))award(s,pi,q,QUEST_DEFS[q.name]);
+    }
+    q=quest(s,pi,'Smith’s Trial v2');
+    if(q&&!q.frozen){
+      if(q.stage===0&&e.type==='QUEST_CHECK'&&e.player===pi&&p.relics.length>0)advance(s,pi,q);
+      else if(q.stage===1&&laterTurn(q,s)&&e.player===pi&&(e.type==='RELIC_PLAYED'||e.type==='FORGE_ACTION'))award(s,pi,q,QUEST_DEFS[q.name]);
+    }
+    q=quest(s,pi,'Catching the Great Pike');
+    if(q&&!q.frozen){
+      if(q.stage===0&&e.player===pi&&e.type==='ATTACK_DECLARED'&&(e.targetType==='CHARACTER'||e.targetType==='LOCATION'))advance(s,pi,q,{cardId:e.cardId});
+      else if(q.stage===1&&laterTurn(q,s)&&e.player===pi&&e.type==='ATTACK_RESULT'&&(e.defeatedCharacter||e.destroyedLocation))award(s,pi,q,QUEST_DEFS[q.name]);
+    }
+    q=quest(s,pi,'Deed of the Hunter');
+    if(q&&!q.frozen){
+      if(q.stage===0&&e.player===pi&&e.type==='CHARACTER_PLAYED'&&e.opposingCharacterLiving)advance(s,pi,q,{cardId:e.cardId});
+      else if(q.stage===1&&laterTurn(q,s)&&e.player===pi&&e.type==='ATTACK_RESULT'&&e.targetType==='CHARACTER'&&e.attackerSurvived)award(s,pi,q,QUEST_DEFS[q.name]);
+    }
+  }
+  // Pohjola
+  if(f==='Pohjola'){
+    let q=quest(s,pi,'Hunt Hiisi’s Elk');
+    if(q&&!q.frozen){
+      if(q.stage===0&&e.player===pi&&e.type==='CHARACTER_ENTERED'&&e.cardName==="Hiisi's Elk")advance(s,pi,q,{cardId:e.cardId});
+      else if(q.stage===1&&laterTurn(q,s)&&e.player===pi&&e.type==='ATTACK_DECLARED'&&sameCard(q,e.cardId)&&(e.targetType==='CHARACTER'||e.targetType==='LOCATION'))award(s,pi,q,QUEST_DEFS[q.name]);
+    }
+    q=quest(s,pi,'Secrets of Pohjola');
+    if(q&&!q.frozen){
+      if(q.stage===0&&e.player===pi&&(e.type==='QUEST_FROZEN'||e.type==='INTERRUPT_SUCCEEDED'))advance(s,pi,q);
+      else if(q.stage===1&&laterTurn(q,s)&&e.player===pi&&e.type==='QUEST_CHECK'&&hasLouhiAndOtherReady(p))award(s,pi,q,QUEST_DEFS[q.name]);
+    }
+    q=quest(s,pi,'Journey to the North');
+    if(q&&!q.frozen){
+      if(q.stage===0&&e.player===pi&&e.type==='CHARACTER_EXHAUSTED_LEGAL_ACTION')advance(s,pi,q,{cardId:e.cardId});
+      else if(q.stage===1&&laterTurn(q,s)&&e.player===pi&&e.type==='ATTACK_RESULT'&&sameCard(q,e.cardId)&&e.successful&&(e.targetType==='LOCATION'||e.targetType==='RESOLVE'))award(s,pi,q,QUEST_DEFS[q.name]);
+    }
+    q=quest(s,pi,'Treasures of Pohjola');
+    if(q&&!q.frozen){
+      if(q.stage===0&&e.player===pi&&e.type==='QUEST_CHECK'&&relicLocationCount(p)>=2)advance(s,pi,q,{permanentIds:activePermanentIds(p)});
+      else if(q.stage===1&&laterTurn(q,s)&&e.player===pi&&e.type==='DAWN'&&q.stageMeta?.permanentIds?.filter(id=>activePermanentIds(p).includes(id)).length>=2)award(s,pi,q,QUEST_DEFS[q.name]);
+    }
+  }
+  // Shared Death quest.
+  const q=quest(s,pi,'Journey toward Tuonela');
+  if(q&&!q.frozen){
+    if(q.stage===0&&e.player===pi&&e.type==='CROSS_DOWN')advance(s,pi,q,{cardId:e.cardId});
+    else if(q.stage===1&&laterTurn(q,s)&&e.player===pi&&e.type==='CROSS_BACK'&&sameCard(q,e.cardId))award(s,pi,q,QUEST_DEFS[q.name]);
+  }
+}
+function processQuestEvent(state,event){
+  const s=clone(state);
+  for(let pi=0;pi<s.players.length;pi++)processForPlayer(s,pi,event);
+  return s;
+}
+function freezeQuest(state,playerIndex,questName){
+  const s=clone(state),q=quest(s,playerIndex,questName);if(!q)return s;
+  q.frozen=true;q.thawAtDawnTurn=s.turn+1;
+  log(s,`${s.players[playerIndex].faction} Quest ${questName} is frozen.`);
+  return s;
+}
+function processDawnQuestThaw(state,playerIndex){
+  const s=clone(state),p=s.players[playerIndex];
+  for(const q of p.quests)if(q.frozen&&q.thawAtDawnTurn!=null&&s.turn>=q.thawAtDawnTurn){
+    q.frozen=false;delete q.thawAtDawnTurn;log(s,`${p.faction} Quest ${q.name} thaws at Dawn.`);
+  }
+  return s;
+}
+function questStatus(state,playerIndex){return clone(state.players[playerIndex].quests)}
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["QUEST_DEFS"]=QUEST_DEFS;
+__exports["processQuestEvent"]=processQuestEvent;
+__exports["freezeQuest"]=freezeQuest;
+__exports["processDawnQuestThaw"]=processDawnQuestThaw;
+__exports["questStatus"]=questStatus;
+return __exports;})();
+__mods["kalevala_v1_stage16g_saga_engine.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16G authoritative Saga lifecycle
+ Forge → Sampo → Dawn benefits/theft → Conflict → Shatter → Shards → Epic.
+ Deterministic rules module; no UI/controller assumptions. */
+const ENGINE_VERSION='16G-AUTHORITATIVE-SAGA';
+const clone=x=>structuredClone(x), other=i=>1-i;
+const total=p=>(p.vake||0)+(p.tempVake||0);
+const log=(s,m)=>s.eventLog?.push(`T${s.turn} ${m}`);
+const distinct=p=>new Set(p.runes).size;
+const pay=(p,n)=>{let x=n,t=Math.min(p.tempVake||0,x);p.tempVake-=t;x-=t;p.vake-=x;if(p.vake<0)throw Error('Negative Väke')};
+const legendary=c=>!!c.legendary||['Väinämöinen','Ilmarinen','Lemminkäinen','Louhi'].includes(c.name);
+function forgeCost(s,pi){const p=s.players[pi],o=s.players[other(pi)];let n=[1,2,3][p.forge||0]??99;if(p.living.some(c=>c.name==='Ilmarinen')&&!p.flags?.ilmarinenForgeDiscountUsed)n--;if(p.flags?.toolsDiscount)n--;if(o.living.some(c=>c.name==='Louhi')&&!o.flags?.louhiTaxUsed)n++;return Math.max(0,n)}
+function canForge(s,pi){const p=s.players[pi];return s.sampo.state==='UNFORGED'&&(p.forge||0)<3&&!p.flags?.forgedThisTurn&&distinct(p)>=2&&total(p)>=forgeCost(s,pi)}
+function advanceForge(state,pi){const s=clone(state),p=s.players[pi];if(!canForge(s,pi))throw Error('Illegal Forge');const cost=forgeCost(s,pi);pay(p,cost);p.forge++;p.flags??={};p.flags.forgedThisTurn=true;if(p.living.some(c=>c.name==='Ilmarinen')&&!p.flags.ilmarinenForgeDiscountUsed)p.flags.ilmarinenForgeDiscountUsed=true;const o=s.players[other(pi)];if(o.living.some(c=>c.name==='Louhi')&&!o.flags?.louhiTaxUsed){o.flags??={};o.flags.louhiTaxUsed=true}log(s,`${p.faction} advances Forge to ${p.forge}/3.`);if(p.forge===3){s.sampo.state='FORGED';s.sampo.controller=p.faction;s.conflict=0;log(s,`${p.faction} FORGES THE SAMPO!`)}return s}
+const SAMPO_BENEFITS=Object.freeze(['Plenty','Abundance','Prosperity']);
+function legalSampoBenefits(s,pi){const p=s.players[pi];if(s.sampo.state!=='FORGED'||s.sampo.controller!==p.faction)return[];const last=s.sampo.lastBenefit?.[pi]??null;return SAMPO_BENEFITS.filter(x=>x!==last)}
+function chooseSampoBenefit(state,pi,benefit,{healing=[]}={}){const s=clone(state),p=s.players[pi];if(!legalSampoBenefits(s,pi).includes(benefit))throw Error('Illegal Sampo benefit');s.sampo.lastBenefit??=[null,null];s.sampo.lastBenefit[pi]=benefit;if(benefit==='Abundance')p.tempVake=(p.tempVake||0)+2;if(benefit==='Prosperity'&&p.deck.length){const c=p.deck.shift();c.zone='HAND';p.hand.push(c)}if(benefit==='Plenty'){let left=2;for(const h of healing){if(left<=0)break;const c=[...p.living,...(p.location?[p.location]:[])].find(x=>x.id===h.id);if(!c)continue;const n=Math.min(left,Math.max(0,h.amount|0),c.damage||c.fortitudeDamage||0);if('damage'in c)c.damage-=n;else c.fortitudeDamage-=n;left-=n}}log(s,`${p.faction} chooses Sampo — ${benefit}.`);return s}
+function canRaidSampo(s,pi,attackerId){const p=s.players[pi];return s.sampo.state==='FORGED'&&s.sampo.controller!==p.faction&&distinct(p)>=2&&total(p)>=3&&p.living.some(c=>c.id===attackerId&&c.ready&&!c.arrival&&!c.frozen)}
+function successfulSampoRaid(state,pi,attackerId){const s=clone(state);if(!canRaidSampo(s,pi,attackerId))throw Error('Illegal Sampo Raid');pay(s.players[pi],3);s.sampo.controller=s.players[pi].faction;log(s,`${s.players[pi].faction} steals the Sampo.`);return addConflictDeed(s,pi,'successful Sampo Raid')}
+function addConflictDeed(state,pi,reason){const s=clone(state);if(s.sampo.state!=='FORGED')return s;s.conflictDeedTurn??={};const k=`${s.turn}:${pi}`;if(s.conflictDeedTurn[k])return s;s.conflictDeedTurn[k]=true;s.conflict=Math.min(4,(s.conflict||0)+1);log(s,`Conflict +1 (${reason}) → ${s.conflict}/4.`);if(s.conflict===4)s.pendingSampoShatter=true;return s}
+function finishSagaAction(state){const s=clone(state);if(s.pendingSampoShatter&&s.sampo.state==='FORGED'){s.pendingSampoShatter=false;s.sampo.state='SHATTERED';s.sampo.controller=null;log(s,'THE SAMPO SHATTERS!')}return s}
+function shardCost(s,pi){const o=s.players[other(pi)];return 1+(o.living.some(c=>c.name==='Louhi')&&!o.flags?.louhiTaxUsed?1:0)}
+function legalShardClaims(s,pi){if(s.sampo.state!=='SHATTERED')return[];const p=s.players[pi],cost=shardCost(s,pi);if(total(p)<cost)return[];const a=[];if(s.shards.Living==null&&p.living.some(c=>c.ready&&!c.frozen))a.push({shard:'Living',cost});if(s.shards.Waters==null&&p.living.some(c=>c.journeyed))a.push({shard:'Waters',cost});if(s.shards.Tuonela==null&&p.tuonela.some(c=>c.ready&&!c.frozen))a.push({shard:'Tuonela',cost});return a}
+function claimShard(state,pi,shard){const s=clone(state),p=s.players[pi],a=legalShardClaims(s,pi).find(x=>x.shard===shard);if(!a)throw Error('Illegal Shard Claim');pay(p,a.cost);if(shard==='Living')p.living.find(c=>c.ready&&!c.frozen).ready=false;if(shard==='Tuonela')p.tuonela.find(c=>c.ready&&!c.frozen).ready=false;s.shards[shard]=p.faction;p.shards.push(shard);const o=s.players[other(pi)];if(a.cost>1){o.flags??={};o.flags.louhiTaxUsed=true}log(s,`${p.faction} claims ${shard} Shard.`);return s}
+function canDeclareEpic(s,pi){const p=s.players[pi];return s.sampo.state==='SHATTERED'&&new Set(p.shards).size>=2&&distinct(p)>=3&&total(p)>=2&&p.living.some(c=>c.ready&&!c.frozen&&legendary(c))}
+function declareEpic(state,pi){const s=clone(state),p=s.players[pi];if(!canDeclareEpic(s,pi))throw Error('Illegal Epic');pay(p,2);const c=p.living.find(c=>c.ready&&!c.frozen&&legendary(c));c.ready=false;s.interrupt={actor:other(pi),kind:'FINAL_EPIC',declarer:pi,options:[]};log(s,`${p.faction} DECLARES EPIC ENDING — Final Interrupt opportunity opens.`);return s}
+function passFinalInterrupt(state,pi){const s=clone(state);if(s.interrupt?.kind!=='FINAL_EPIC'||s.interrupt.actor!==pi)throw Error('No Final Interrupt');const d=s.interrupt.declarer;s.interrupt=null;s.winner=s.players[d].faction;s.route='Epic';log(s,`${s.winner} completes the EPIC ENDING!`);return s}
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["forgeCost"]=forgeCost;
+__exports["canForge"]=canForge;
+__exports["advanceForge"]=advanceForge;
+__exports["SAMPO_BENEFITS"]=SAMPO_BENEFITS;
+__exports["legalSampoBenefits"]=legalSampoBenefits;
+__exports["chooseSampoBenefit"]=chooseSampoBenefit;
+__exports["canRaidSampo"]=canRaidSampo;
+__exports["successfulSampoRaid"]=successfulSampoRaid;
+__exports["addConflictDeed"]=addConflictDeed;
+__exports["finishSagaAction"]=finishSagaAction;
+__exports["legalShardClaims"]=legalShardClaims;
+__exports["claimShard"]=claimShard;
+__exports["canDeclareEpic"]=canDeclareEpic;
+__exports["declareEpic"]=declareEpic;
+__exports["passFinalInterrupt"]=passFinalInterrupt;
+return __exports;})();
+__mods["kalevala_v1_stage16h_card_effects.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16H card-effects parity layer
+ Deterministic card-specific helpers. Designed to plug into 16D/16E action/timing pipeline. */
+const ENGINE_VERSION='16H-CARD-EFFECTS-PARITY';
+const clone=x=>structuredClone(x), other=i=>1-i;
+const log=(s,m)=>s.eventLog?.push(`T${s.turn} ${m}`);
+const pwr=(c)=>c.power??({Väinämöinen:5,Ilmarinen:6,Lemminkäinen:7,'Great Eagle':3,"Lemminkäinen's Mother":2,Louhi:4,'Pohjola Maiden':3,"Hiisi's Elk":4,'Ice-Witch':2}[c.name]||0);
+function songCostModifier(s,pi){const p=s.players[pi];return p.living.some(c=>c.name==='Väinämöinen')&&!p.flags?.vainoSongDiscountUsed?-1:0}
+function onQuestComplete(state,pi){const s=clone(state),p=s.players[pi];if(p.living.some(c=>c.name==='Väinämöinen')&&p.deck.length){let c=p.deck.shift();c.zone='HAND';p.hand.push(c);log(s,'Väinämöinen draws 1 after Quest completion.')}return s}
+function raidPowerModifier(s,card,targetType){let n=0;if(targetType==='LOCATION'&&(card.name==='Lemminkäinen'||card.name==="Hiisi's Elk"))n+=2;if(targetType==='LOCATION'&&card.raidPenalty)n-=card.raidPenalty;return n}
+function greatEaglePrevent(state,pi,eagleId,targetId,amount=1){const s=clone(state),p=s.players[pi],e=p.living.find(c=>c.id===eagleId),t=p.living.find(c=>c.id===targetId);if(!e||!e.ready||!t||e.id===t.id)throw Error('Illegal Eagle prevention');e.ready=false;t.preventDamage=(t.preventDamage||0)+amount;return s}
+function motherSearch(state,pi,cards){const s=clone(state),p=s.players[pi];if(!p.living.some(c=>c.name==="Lemminkäinen's Mother")||p.flags?.motherSearchUsed)return s;p.flags??={};p.flags.motherSearchUsed=true;const looked=p.deck.splice(0,Math.min(2,p.deck.length));if(!looked.length)return s;const chosen=looked.find(c=>cards?.includes(c.id))||looked[0];chosen.zone='HAND';p.hand.push(chosen);for(const c of looked)if(c!==chosen)p.deck.push(c);return s}
+function kanteleLook(state,pi,revealId=null){const s=clone(state),p=s.players[pi];if(!p.relics.some(c=>c.name==='Kantele')||p.flags?.kanteleUsed)return s;p.flags??={};p.flags.kanteleUsed=true;const looked=p.deck.splice(0,Math.min(2,p.deck.length));const r=looked.find(c=>c.id===revealId&&c.name==='Song of Binding');if(r){r.zone='HAND';p.hand.push(r)}for(const c of looked)if(c!==r)p.deck.push(c);return s}
+function swordAttach(state,pi,swordId,charId){const s=clone(state),p=s.players[pi],sw=p.relics.find(c=>c.id===swordId&&c.name==="Kullervo's Sword"),c=p.living.find(c=>c.id===charId);if(!sw||!c)throw Error('Illegal Sword attach');sw.attachedTo=c.id;c.swordBonus=2;return s}
+function swordAfterAttack(state,pi,charId){const s=clone(state),p=s.players[pi],c=p.living.find(c=>c.id===charId),sw=p.relics.find(x=>x.name==="Kullervo's Sword"&&x.attachedTo===charId);if(c&&sw)c.damage=(c.damage||0)+1;return s}
+function detachOrphanSword(state,pi,charId){const s=clone(state),p=s.players[pi];for(const sw of p.relics.filter(x=>x.name==="Kullervo's Sword"&&x.attachedTo===charId))sw.attachedTo=null;return s}
+function toolsDestroy(state,pi){const s=clone(state),p=s.players[pi],i=p.relics.findIndex(c=>c.name==="Smith's Tools");if(i<0)throw Error('No Tools');const [c]=p.relics.splice(i,1);c.zone='MEMORY';p.memory.push(c);p.flags??={};p.flags.toolsDiscount=true;p.flags.toolsForgeLook=true;return s}
+function toolsForgeLook(state,pi,bottom=false){const s=clone(state),p=s.players[pi];if(!p.flags?.toolsForgeLook||!p.deck.length)return s;p.flags.toolsForgeLook=false;if(bottom)p.deck.push(p.deck.shift());return s}
+function protectiveCharm(state,pi,targetId){const s=clone(state),c=s.players[pi].living.find(c=>c.id===targetId);if(!c)throw Error('Bad Charm target');c.preventDamage=(c.preventDamage||0)+2;return s}
+function songBinding(state,targetPi,targetId){const s=clone(state),c=s.players[targetPi].living.find(c=>c.id===targetId);if(!c)throw Error('Bad Binding target');c.ready=false;c.skipNextDawnReady=true;return s}
+function vainolaHeal(state,pi,targetId){const s=clone(state),p=s.players[pi],c=p.living.find(c=>c.id===targetId);if(!p.location||p.location.name!=='Väinölä'||p.flags?.vainolaUsed||!c||!(c.damage>0))return s;p.flags??={};p.flags.vainolaUsed=true;c.damage--;return s}
+function smithyLook(state,pi,bottom=false){const s=clone(state),p=s.players[pi];if(!p.location||p.location.name!=="Ilmarinen's Smithy"||p.flags?.smithyUsed||!p.deck.length)return s;p.flags??={};p.flags.smithyUsed=true;if(bottom)p.deck.push(p.deck.shift());return s}
+function maidenLook(state,pi,revealId=null){const s=clone(state),p=s.players[pi],look=p.deck.splice(0,Math.min(3,p.deck.length));const r=look.find(c=>c.id===revealId&&(['Hidden Storehouse','Kantele',"Kullervo's Sword","Smith's Tools",'Väinölä',"Ilmarinen's Smithy",'Pohjola Fortress','Gates of Pohjola'].includes(c.name)));if(r){r.zone='HAND';p.hand.push(r)}for(const c of look)if(c!==r)p.deck.push(c);return s}
+function elkExtraLocationDamage(state,locationOwnerPi,elkSurvives){const s=clone(state),loc=s.players[locationOwnerPi].location;if(loc&&elkSurvives)loc.fortitudeDamage=(loc.fortitudeDamage||0)+1;return s}
+function storeVake(state,pi,id){const s=clone(state),p=s.players[pi],c=p.relics.find(x=>x.id===id&&x.name==='Hidden Storehouse');if(!c||!c.ready||p.tempVake<1||(c.counters?.stored||0)>=1)throw Error('Illegal Store');c.ready=false;c.counters??={};c.counters.stored=1;p.tempVake--;return s}
+function releaseVake(state,pi,id){const s=clone(state),p=s.players[pi],c=p.relics.find(x=>x.id===id&&x.name==='Hidden Storehouse');if(!c||!(c.counters?.stored>0))throw Error('Illegal Release');c.counters.stored=0;p.vake=Math.min(10,p.vake+1);return s}
+function fortressPrevent(state,pi,defenderId,amount=1){const s=clone(state),p=s.players[pi],c=p.living.find(c=>c.id===defenderId);if(p.location?.name!=='Pohjola Fortress'||p.flags?.fortressUsed||!c)return s;p.flags??={};p.flags.fortressUsed=true;c.preventDamage=(c.preventDamage||0)+amount;return s}
+function frostArrival(state,pi,cardId){const s=clone(state),c=s.players[pi].living.find(c=>c.id===cardId);if(c)c.ready=false;return s}
+function chainsBlockCrossBack(state,pi,cardId){const s=clone(state),c=s.players[pi].tuonela.find(c=>c.id===cardId);if(c&&(c.deathMarks||0)>0)c.crossBackBlocked=true;return s}
+function gatesRaidPenalty(state,defenderPi,attacker){const s=clone(state),p=s.players[defenderPi];if(p.location?.name!=='Gates of Pohjola'||p.flags?.gatesUsed)return s;p.flags??={};p.flags.gatesUsed=true;attacker.raidPenalty=(attacker.raidPenalty||0)+2;return s}
+function iceWitchCanInterrupt(s,pi){return s.players[pi].living.some(c=>c.name==='Ice-Witch'&&c.ready&&!c.frozen)}
+function frostCharmCanInterrupt(s,pi){return s.players[pi].hand.some(c=>c.name==='Frost Charm')}
+function resetDawnFlags(state,pi){const s=clone(state),p=s.players[pi];p.flags={...(p.flags||{}),motherSearchUsed:false,kanteleUsed:false,vainolaUsed:false,smithyUsed:false,fortressUsed:false,gatesUsed:false};for(const c of p.living){if(c.skipNextDawnReady){c.skipNextDawnReady=false;c.ready=false}else if(!c.frozen)c.ready=true;c.raidPenalty=0}for(const c of p.tuonela)c.crossBackBlocked=false;for(const c of p.relics)c.ready=true;return s}
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["songCostModifier"]=songCostModifier;
+__exports["onQuestComplete"]=onQuestComplete;
+__exports["raidPowerModifier"]=raidPowerModifier;
+__exports["greatEaglePrevent"]=greatEaglePrevent;
+__exports["motherSearch"]=motherSearch;
+__exports["kanteleLook"]=kanteleLook;
+__exports["swordAttach"]=swordAttach;
+__exports["swordAfterAttack"]=swordAfterAttack;
+__exports["detachOrphanSword"]=detachOrphanSword;
+__exports["toolsDestroy"]=toolsDestroy;
+__exports["toolsForgeLook"]=toolsForgeLook;
+__exports["protectiveCharm"]=protectiveCharm;
+__exports["songBinding"]=songBinding;
+__exports["vainolaHeal"]=vainolaHeal;
+__exports["smithyLook"]=smithyLook;
+__exports["maidenLook"]=maidenLook;
+__exports["elkExtraLocationDamage"]=elkExtraLocationDamage;
+__exports["storeVake"]=storeVake;
+__exports["releaseVake"]=releaseVake;
+__exports["fortressPrevent"]=fortressPrevent;
+__exports["frostArrival"]=frostArrival;
+__exports["chainsBlockCrossBack"]=chainsBlockCrossBack;
+__exports["gatesRaidPenalty"]=gatesRaidPenalty;
+__exports["iceWitchCanInterrupt"]=iceWitchCanInterrupt;
+__exports["frostCharmCanInterrupt"]=frostCharmCanInterrupt;
+__exports["resetDawnFlags"]=resetDawnFlags;
+return __exports;})();
+__mods["kalevala_v1_stage16i_integrated_engine.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16I integrated authoritative engine facade
+   One import surface for deterministic state, legality, execution, timing, quests,
+   Saga lifecycle and card effects. Stage 15J.1 remains frozen reference. */
+const State=__mods["kalevala_v1_stage16b_state_model.mjs"];
+const Legal=__mods["kalevala_v1_stage16c_legal_actions.mjs"];
+const Apply=__mods["kalevala_v1_stage16d_apply_action.mjs"];
+const Timing=__mods["kalevala_v1_stage16e_timing_engine.mjs"];
+const Quests=__mods["kalevala_v1_stage16f_quest_rune_engine.mjs"];
+const Saga=__mods["kalevala_v1_stage16g_saga_engine.mjs"];
+const Cards=__mods["kalevala_v1_stage16h_card_effects.mjs"];
+
+const ENGINE_VERSION='16I-INTEGRATED-AUTHORITATIVE';
+const modules=Object.freeze({
+ state:State.ENGINE_VERSION, legal:Legal.ENGINE_VERSION, apply:Apply.ENGINE_VERSION,
+ timing:Timing.ENGINE_VERSION, quests:Quests.ENGINE_VERSION,
+ saga:Saga.ENGINE_VERSION, cards:Cards.ENGINE_VERSION
+});
+const newGame=State.newGame;
+const legalActions=Legal.legalActions;
+const applyAction=Apply.applyAction;
+const publicView=State.publicView;
+const validateState=State.validateState;
+const stateDigest=State.stateDigest;
+const PHASES=State.PHASES;
+const FACTIONS=State.FACTIONS;
+
+
+function isTerminal(s){return s.winner!=null}
+function step(state,actor,action){
+  const before=JSON.stringify(state);
+  const next=Apply.applyAction(state,actor,action);
+  if(JSON.stringify(state)!==before)throw Error('applyAction mutated input state');
+  return next;
+}
+function firstLegalPolicy(state,actor){
+  const a=Legal.legalActions(state,actor);
+  // Prefer ordinary progress, but use first action when available.
+  return a.find(x=>x.type!=='END_PHASE')||a[0]||null;
+}
+function phasePolicy(state,actor){
+  const a=Legal.legalActions(state,actor);
+  return a.find(x=>x.type==='PASS_INTERCEPT')||
+         a.find(x=>x.type==='END_PHASE')||a[0]||null;
+}
+function runDeterministic({seed='16i',controllers={Kalevala:'AI',Pohjola:'AI'},startingFaction='Kalevala',maxActions=500,policy=phasePolicy}={}){
+  let s=State.newGame({seed,controllers,startingFaction}), actions=0;
+  while(!isTerminal(s)&&actions<maxActions){
+    let actor;
+    if(s.interrupt) actor=s.players[s.interrupt.actor].faction;
+    else if(s.pending?.type==='INTERCEPT') actor=s.players[s.pending.defender].faction;
+    else actor=s.players[s.active].faction;
+    const a=policy(s,actor);
+    if(!a)break;
+    s=step(s,actor,a); actions++;
+  }
+  return {state:s,actions,digest:State.stateDigest(s)};
+}
+function replayFromActions({seed,controllers,startingFaction,actions}){
+  let s=State.newGame({seed,controllers,startingFaction});
+  for(const entry of actions)s=step(s,entry.actor,entry.action);
+  return s;
+}
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["modules"]=modules;
+__exports["newGame"]=newGame;
+__exports["legalActions"]=legalActions;
+__exports["applyAction"]=applyAction;
+__exports["publicView"]=publicView;
+__exports["validateState"]=validateState;
+__exports["stateDigest"]=stateDigest;
+__exports["PHASES"]=PHASES;
+__exports["FACTIONS"]=FACTIONS;
+__exports["isTerminal"]=isTerminal;
+__exports["step"]=step;
+__exports["firstLegalPolicy"]=firstLegalPolicy;
+__exports["phasePolicy"]=phasePolicy;
+__exports["runDeterministic"]=runDeterministic;
+__exports["replayFromActions"]=replayFromActions;
+__exports["Timing"]=Timing;
+__exports["Quests"]=Quests;
+__exports["Saga"]=Saga;
+__exports["Cards"]=Cards;
+return __exports;})();
+__mods["kalevala_v1_stage16j_gameplay_wiring.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16J gameplay wiring + parity certification layer.
+   Connects core actions to Quest/Saga/Card event hooks without UI assumptions.
+   Conservative scope: certified hooks only; unresolved choice-heavy effects remain explicit. */
+const E=__mods["kalevala_v1_stage16i_integrated_engine.mjs"];
+const ENGINE_VERSION='16J-GAMEPLAY-WIRING';
+const clone=x=>structuredClone(x);
+const idx=(s,a)=>typeof a==='number'?a:s.players.findIndex(p=>p.faction===a);
+const other=i=>1-i;
+const def=(s,id)=>{for(const p of s.players)for(const z of ['hand','living','tuonela','relics','memory']){const c=p[z]?.find(x=>x.id===id);if(c)return c}for(const p of s.players)if(p.location?.id===id)return p.location;return null};
+const cardType=n=>({Väinämöinen:'Legendary Character',Ilmarinen:'Legendary Character',Lemminkäinen:'Legendary Character','Great Eagle':'Character',"Lemminkäinen's Mother":'Character',Louhi:'Legendary Character','Pohjola Maiden':'Character',"Hiisi's Elk":'Character','Ice-Witch':'Character',Kantele:'Legendary Relic',"Kullervo's Sword":'Relic',"Smith's Tools":'Relic','Hidden Storehouse':'Relic',Väinölä:'Location',"Ilmarinen's Smithy":'Location','Pohjola Fortress':'Location','Gates of Pohjola':'Location','Song of Binding':'Song'}[n]||'Other');
+
+function qevent(s,e){return E.Quests.processQuestEvent(s,e)}
+function afterPlay(before,s,pi,a){
+  const old=before.players[pi].hand.find(c=>c.id===a.cardId); if(!old)return s;
+  const typ=cardType(old.name);
+  if(/Character/.test(typ)){
+    s=qevent(s,{type:'CHARACTER_PLAYED',player:pi,cardId:old.id,opposingCharacterLiving:before.players[other(pi)].living.length>0});
+    s=qevent(s,{type:'CHARACTER_ENTERED',player:pi,cardId:old.id,cardName:old.name});
+  }
+  if(/Relic/.test(typ))s=qevent(s,{type:'RELIC_PLAYED',player:pi,cardId:old.id});
+  if(old.name==='Song of Binding'){
+    s=qevent(s,{type:'SONG_RESOLVED',player:pi,controlledReadyCharacter:s.players[pi].living.some(c=>c.ready&&!c.frozen)});
+  }
+  return qevent(s,{type:'QUEST_CHECK',player:pi});
+}
+function afterAttack(before,s,pi,a){
+  const attacker=before.players[pi].living.find(c=>c.id===a.attackerId);
+  const targetType=a.type==='ATTACK_CHARACTER'?'CHARACTER':a.type==='ATTACK_RESOLVE'?'RESOLVE':a.targetType;
+  s=qevent(s,{type:'ATTACK_DECLARED',player:pi,cardId:a.attackerId,targetType});
+  if(a.type==='ATTACK_CHARACTER'){
+    const survived=!!s.players[pi].living.find(c=>c.id===a.attackerId);
+    const defeated=!s.players[other(pi)].living.find(c=>c.id===a.targetId);
+    s=qevent(s,{type:'ATTACK_RESULT',player:pi,cardId:a.attackerId,targetType:'CHARACTER',attackerSurvived:survived,defeatedCharacter:defeated,successful:true});
+    if(defeated)s=E.Saga.addConflictDeed(s,pi,'defeat opposing Character');
+  }
+  return s;
+}
+function afterCross(before,s,pi,a){
+  return qevent(s,{type:'CROSS_BACK',player:pi,cardId:a.cardId});
+}
+function afterForge(s,pi){return qevent(s,{type:'FORGE_ACTION',player:pi})}
+function afterPhase(before,s,pi){
+  const phase=E.PHASES[before.phase];
+  if(phase==='DAWN'){s=E.Quests.processDawnQuestThaw(s,pi);s=qevent(s,{type:'DAWN',player:pi});s=qevent(s,{type:'QUEST_CHECK',player:pi})}
+  return s;
+}
+function applyAction(state,actor,action){
+  const pi=idx(state,actor); if(pi<0)throw Error('Unknown actor');
+  const before=clone(state);
+  let s=E.applyAction(state,actor,action);
+  if(action.type==='PLAY_CARD')s=afterPlay(before,s,pi,action);
+  else if(['ATTACK_CHARACTER','ATTACK_RESOLVE','RAID'].includes(action.type))s=afterAttack(before,s,pi,action);
+  else if(action.type==='CROSS_BACK')s=afterCross(before,s,pi,action);
+  else if(action.type==='ADVANCE_FORGE')s=afterForge(s,pi);
+  else if(action.type==='END_PHASE')s=afterPhase(before,s,pi);
+  return E.Timing.finishAction(s);
+}
+const newGame=E.newGame;
+const legalActions=E.legalActions;
+const isTerminal=E.isTerminal;
+function replay({seed='16j',controllers={Kalevala:'AI',Pohjola:'AI'},startingFaction='Kalevala',actions=[]}={}){
+ let s=newGame({seed,controllers,startingFaction});for(const x of actions)s=applyAction(s,x.actor,x.action);return s
+}
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["applyAction"]=applyAction;
+__exports["newGame"]=newGame;
+__exports["legalActions"]=legalActions;
+__exports["isTerminal"]=isTerminal;
+__exports["replay"]=replay;
+return __exports;})();
+__mods["kalevala_v1_stage16l_parity_closure.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16L parity-closure dispatcher
+   Makes every frozen card name reachable through an authoritative effect dispatch surface.
+   Choice/reactive effects expose explicit deterministic calls; this is the closure layer
+   to be consumed by the final legalActions/applyAction merger. */
+const H=__mods["kalevala_v1_stage16h_card_effects.mjs"];
+const ENGINE_VERSION='16L-PARITY-CLOSURE';
+const CARD_EFFECTS=Object.freeze({
+'Väinämöinen':['SONG_DISCOUNT','QUEST_COMPLETE_DRAW'],
+'Ilmarinen':['FORGE_DISCOUNT'],
+'Lemminkäinen':['LOCATION_RAID_POWER'],
+'Great Eagle':['PREVENT_DAMAGE'],
+"Lemminkäinen's Mother":['MOTHER_SEARCH','CROSS_BACK_DISCOUNT'],
+'Kantele':['FIRST_SONG_LOOK'],
+"Kullervo's Sword":['ATTACH','AFTER_ATTACK','DETACH'],
+"Smith's Tools":['DESTROY_DISCOUNT','FORGE_LOOK'],
+"Traveler's Provisions":['TEMP_VAKE'],
+'Protective Charm':['PREVENT_DAMAGE'],
+'Song of Binding':['BIND'],
+'Väinölä':['AFTER_SONG_HEAL'],
+"Ilmarinen's Smithy":['FIRST_RELIC_LOOK'],
+'Louhi':['FORGE_SHARD_TAX'],
+'Pohjola Maiden':['ENTER_LOOK'],
+"Hiisi's Elk":['LOCATION_RAID_POWER','LOCATION_RAID_EXTRA'],
+'Ice-Witch':['QUESTWATCH'],
+'Frost Charm':['QUESTWATCH'],
+'Hidden Storehouse':['STORE','RELEASE'],
+'Pohjola Fortress':['INTERCEPT_PREVENT'],
+'Frost of Pohjola':['ARRIVAL_EXHAUST'],
+'Chains of Pohjola':['BLOCK_CROSS_BACK'],
+'Gates of Pohjola':['RAID_PENALTY']
+});
+const clone=x=>structuredClone(x);
+function effectsFor(name){return CARD_EFFECTS[name]||[]}
+function dispatch(state,pi,effect,args={}){
+ switch(effect){
+ case'SONG_DISCOUNT': return {state:clone(state),value:H.songCostModifier(state,pi)};
+ case'QUEST_COMPLETE_DRAW': return {state:H.onQuestComplete(state,pi)};
+ case'LOCATION_RAID_POWER': return {state:clone(state),value:H.raidPowerModifier(state,args.card,args.targetType)};
+ case'PREVENT_DAMAGE': return {state:args.sourceId?H.greatEaglePrevent(state,pi,args.sourceId,args.targetId,args.amount||1):H.protectiveCharm(state,pi,args.targetId)};
+ case'MOTHER_SEARCH': return {state:H.motherSearch(state,pi,args.chooseIds)};
+ case'FIRST_SONG_LOOK': return {state:H.kanteleLook(state,pi,args.revealId)};
+ case'ATTACH': return {state:H.swordAttach(state,pi,args.swordId,args.charId)};
+ case'AFTER_ATTACK': return {state:H.swordAfterAttack(state,pi,args.charId)};
+ case'DETACH': return {state:H.detachOrphanSword(state,pi,args.charId)};
+ case'DESTROY_DISCOUNT': return {state:H.toolsDestroy(state,pi)};
+ case'FORGE_LOOK': return {state:H.toolsForgeLook(state,pi,!!args.bottom)};
+ case'BIND': return {state:H.songBinding(state,args.targetPi,args.targetId)};
+ case'AFTER_SONG_HEAL': return {state:H.vainolaHeal(state,pi,args.targetId)};
+ case'FIRST_RELIC_LOOK': return {state:H.smithyLook(state,pi,!!args.bottom)};
+ case'ENTER_LOOK': return {state:H.maidenLook(state,pi,args.revealId)};
+ case'LOCATION_RAID_EXTRA': return {state:H.elkExtraLocationDamage(state,args.locationOwnerPi,args.elkSurvives)};
+ case'STORE': return {state:H.storeVake(state,pi,args.sourceId)};
+ case'RELEASE': return {state:H.releaseVake(state,pi,args.sourceId)};
+ case'INTERCEPT_PREVENT': return {state:H.fortressPrevent(state,pi,args.defenderId)};
+ case'ARRIVAL_EXHAUST': return {state:H.frostArrival(state,pi,args.cardId)};
+ case'BLOCK_CROSS_BACK': return {state:H.chainsBlockCrossBack(state,args.targetPi,args.cardId)};
+ case'RAID_PENALTY': return {state:H.gatesRaidPenalty(state,args.defenderPi,args.attacker)};
+ case'QUESTWATCH': return {state:clone(state),value:args.kind==='ICE_WITCH'?H.iceWitchCanInterrupt(state,pi):H.frostCharmCanInterrupt(state,pi)};
+ case'FORGE_DISCOUNT':case'CROSS_BACK_DISCOUNT':case'TEMP_VAKE':case'FORGE_SHARD_TAX':
+   return {state:clone(state),delegated:true}; // already authoritative in 16C/16D/16G
+ default: throw Error('Unknown effect '+effect);
+ }
+}
+function coverage(){
+ const names=Object.keys(CARD_EFFECTS), effects=names.reduce((n,k)=>n+CARD_EFFECTS[k].length,0);
+ return {uniqueCards:names.length,effectHooks:effects,allMapped:names.length===23};
+}
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["CARD_EFFECTS"]=CARD_EFFECTS;
+__exports["effectsFor"]=effectsFor;
+__exports["dispatch"]=dispatch;
+__exports["coverage"]=coverage;
+return __exports;})();
+__mods["kalevala_v1_stage16m_master_engine.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16M master-engine convergence
+ One public action API over 16J core wiring + 16L card dispatcher.
+ Explicit EFFECT actions are authoritative choice/reactive resolutions until
+ individual windows are promoted to richer UI actions. */
+const J=__mods["kalevala_v1_stage16j_gameplay_wiring.mjs"];
+const L=__mods["kalevala_v1_stage16l_parity_closure.mjs"];
+const I=__mods["kalevala_v1_stage16i_integrated_engine.mjs"];
+const ENGINE_VERSION='16M-MASTER-ENGINE';
+const newGame=J.newGame;
+const isTerminal=J.isTerminal;
+const idx=(s,a)=>typeof a==='number'?a:s.players.findIndex(p=>p.faction===a);
+function legalActions(state,actor){
+ const base=J.legalActions(state,actor).map(a=>({...a,channel:'CORE'}));
+ const pi=idx(state,actor); if(pi<0||state.winner)return [];
+ const p=state.players[pi], extra=[];
+ // Activated effects that are independently legal.
+ for(const c of p.relics||[]){
+   if(c.name==="Smith's Tools") extra.push({type:'EFFECT',effect:'DESTROY_DISCOUNT',sourceId:c.id,channel:'CARD'});
+   if(c.name==='Hidden Storehouse'){
+     if(c.ready&&p.tempVake>0&&(c.counters?.stored||0)<1)extra.push({type:'EFFECT',effect:'STORE',sourceId:c.id,channel:'CARD'});
+     if((c.counters?.stored||0)>0&&I.PHASES[state.phase]==='MAIN')extra.push({type:'EFFECT',effect:'RELEASE',sourceId:c.id,channel:'CARD'});
+   }
+ }
+ for(const c of p.living||[])if(c.name==='Great Eagle'&&c.ready)
+   for(const t of p.living.filter(x=>x.id!==c.id))extra.push({type:'EFFECT',effect:'PREVENT_DAMAGE',sourceId:c.id,targetId:t.id,channel:'CARD'});
+ return base.concat(extra);
+}
+function isLegalEffect(state,actor,a){return legalActions(state,actor).some(x=>JSON.stringify(x)===JSON.stringify(a))}
+function applyAction(state,actor,action){
+ const pi=idx(state,actor);if(pi<0)throw Error('Unknown actor');
+ if(action.type!=='EFFECT'){
+   const core={...action}; delete core.channel;
+   return J.applyAction(state,actor,core);
+ }
+ if(!isLegalEffect(state,actor,action))throw Error('Illegal EFFECT action');
+ const args={...action};delete args.type;delete args.effect;delete args.channel;
+ return L.dispatch(state,pi,action.effect,args).state;
+}
+function replay({seed='16m',controllers={Kalevala:'AI',Pohjola:'AI'},startingFaction='Kalevala',actions=[]}={}){
+ let s=newGame({seed,controllers,startingFaction});for(const x of actions)s=applyAction(s,x.actor,x.action);return s;
+}
+function parityStatus(){
+ const c=L.coverage();
+ return {mappedUniqueNames:c.uniqueCards,effectHooks:c.effectHooks,
+   masterApi:true,fullNaturalParity:false,
+   note:'Activated Tools/Storehouse/Eagle are master-API wired; remaining triggered/interrupt/target-choice effects require automatic window generation.'};
+}
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["newGame"]=newGame;
+__exports["isTerminal"]=isTerminal;
+__exports["legalActions"]=legalActions;
+__exports["applyAction"]=applyAction;
+__exports["replay"]=replay;
+__exports["parityStatus"]=parityStatus;
+return __exports;})();
+__mods["kalevala_v1_stage16n_timing_choice_windows.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16N timing + choice window closure.
+ Windows are explicit state.pendingChoice objects; resolution is deterministic and
+ routes into 16L card-effect dispatcher. */
+const L=__mods["kalevala_v1_stage16l_parity_closure.mjs"];
+const ENGINE_VERSION='16N-TIMING-CHOICE-WINDOWS';
+const C=x=>structuredClone(x), O=i=>1-i;
+const has=(p,n,z='living')=>(p[z]||[]).some(c=>c.name===n);
+function windowsFor(state,event){
+ const s=state, out=[], pi=event.player, oi=pi==null?null:O(pi);
+ if(event.type==='QUEST_ADVANCED'&&oi!=null){
+   if((s.players[oi].living||[]).some(c=>c.name==='Ice-Witch'&&c.ready&&!c.frozen))out.push({actor:oi,kind:'INTERRUPT',effect:'QUESTWATCH',source:'Ice-Witch',questOwner:pi,questName:event.questName});
+   if(has(s.players[oi],'Frost Charm','hand'))out.push({actor:oi,kind:'INTERRUPT',effect:'QUESTWATCH',source:'Frost Charm',questOwner:pi,questName:event.questName});
+ }
+ if(event.type==='CROSS_BACK_DECLARED'&&event.deathMarks>0&&oi!=null&&has(s.players[oi],'Chains of Pohjola','hand'))out.push({actor:oi,kind:'INTERRUPT',effect:'BLOCK_CROSS_BACK',targetPi:pi,cardId:event.cardId});
+ if(event.type==='SONG_PLAYED'){
+   if(has(s.players[pi],'Kantele','relics'))out.push({actor:pi,kind:'CHOICE',effect:'FIRST_SONG_LOOK'});
+   if(s.players[pi].location?.name==='Väinölä')out.push({actor:pi,kind:'CHOICE',effect:'AFTER_SONG_HEAL'});
+ }
+ if(event.type==='RELIC_PLAYED'&&s.players[pi].location?.name==="Ilmarinen's Smithy")out.push({actor:pi,kind:'CHOICE',effect:'FIRST_RELIC_LOOK'});
+ if(event.type==='CHARACTER_ENTERED'&&event.cardName==='Pohjola Maiden')out.push({actor:pi,kind:'CHOICE',effect:'ENTER_LOOK'});
+ if(event.type==='CHARACTER_CROSSED_DOWN'&&has(s.players[pi],"Lemminkäinen's Mother"))out.push({actor:pi,kind:'CHOICE',effect:'MOTHER_SEARCH'});
+ if(event.type==='DAMAGE_PENDING'){
+   for(const c of s.players[pi].living||[])if(c.name==='Great Eagle'&&c.ready&&c.id!==event.targetId)out.push({actor:pi,kind:'REPLACEMENT',effect:'PREVENT_DAMAGE',sourceId:c.id,targetId:event.targetId});
+   if(event.charmAvailable)out.push({actor:pi,kind:'REPLACEMENT',effect:'PREVENT_DAMAGE',targetId:event.targetId});
+ }
+ if(event.type==='RAID_DECLARED'&&oi!=null&&s.players[oi].location?.name==='Gates of Pohjola')out.push({actor:oi,kind:'REPLACEMENT',effect:'RAID_PENALTY',defenderPi:oi});
+ if(event.type==='RAID_INTERCEPTED'&&s.players[pi].location?.name==='Pohjola Fortress')out.push({actor:pi,kind:'REPLACEMENT',effect:'INTERCEPT_PREVENT',defenderId:event.defenderId});
+ if(event.type==='LOCATION_RAID_SUCCESS'&&event.cardName==="Hiisi's Elk")out.push({actor:pi,kind:'TRIGGER',effect:'LOCATION_RAID_EXTRA',locationOwnerPi:oi,elkSurvives:event.survived});
+ if(event.type==='ATTACK_FINISHED'&&event.hasSword)out.push({actor:pi,kind:'TRIGGER',effect:'AFTER_ATTACK',charId:event.cardId});
+ if(event.type==='CHARACTER_LEFT_LIVING'&&event.hadSword)out.push({actor:pi,kind:'TRIGGER',effect:'DETACH',charId:event.cardId});
+ if(event.type==='CHARACTER_ENTERED'&&event.frostApplies)out.push({actor:pi,kind:'REPLACEMENT',effect:'ARRIVAL_EXHAUST',cardId:event.cardId});
+ return out;
+}
+function openNext(state,event){
+ const s=C(state), ws=windowsFor(s,event); if(!ws.length)return s;
+ s.pendingChoice={event:C(event),windows:ws,index:0}; return s;
+}
+function currentWindow(s){return s.pendingChoice?.windows?.[s.pendingChoice.index]||null}
+function resolveWindow(state,args={}){
+ let s=C(state),w=currentWindow(s);if(!w)throw Error('No pending window');
+ if(args.pass){s.pendingChoice.index++;if(!currentWindow(s))s.pendingChoice=null;return s}
+ const a={...w,...args}; delete a.actor;delete a.kind;delete a.source;delete a.questOwner;delete a.questName;
+ if(w.effect==='QUESTWATCH'){
+   // Window legality is certified here; freeze application is left as an explicit quest mutation.
+   const q=s.players[w.questOwner].quests.find(q=>q.name===w.questName);
+   if(q)q.frozen=true;
+   if(w.source==='Ice-Witch'){const iw=s.players[w.actor].living.find(c=>c.name==='Ice-Witch'&&c.ready&&!c.frozen);if(iw)iw.ready=false}
+   else {const p=s.players[w.actor],i=p.hand.findIndex(c=>c.name==='Frost Charm');if(i>=0){let [c]=p.hand.splice(i,1);c.zone='MEMORY';p.memory.push(c)}}
+ } else s=L.dispatch(s,w.actor,w.effect,a).state;
+ if(s.pendingChoice){s.pendingChoice.index++;if(!currentWindow(s))s.pendingChoice=null}
+ return s;
+}
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["windowsFor"]=windowsFor;
+__exports["openNext"]=openNext;
+__exports["currentWindow"]=currentWindow;
+__exports["resolveWindow"]=resolveWindow;
+return __exports;})();
+__mods["kalevala_v1_stage16o_auto_dispatch.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 16O automatic event dispatcher.
+   Wraps the 16M master API and automatically derives/open 16N timing windows
+   from executed core actions where the action result exposes enough information.
+   It deliberately does not certify unsupported semantic guesses. */
+const M=__mods["kalevala_v1_stage16m_master_engine.mjs"];
+const N=__mods["kalevala_v1_stage16n_timing_choice_windows.mjs"];
+const I=__mods["kalevala_v1_stage16i_integrated_engine.mjs"];
+const ENGINE_VERSION='16O-AUTO-EVENT-DISPATCH';
+const newGame=M.newGame, isTerminal=M.isTerminal;
+const idx=(s,a)=>typeof a==='number'?a:s.players.findIndex(p=>p.faction===a);
+const find=(s,id)=>{for(const p of s.players){for(const z of ['hand','living','tuonela','relics','memory']){let c=(p[z]||[]).find(x=>x.id===id);if(c)return c}if(p.location?.id===id)return p.location}return null};
+function events(before,after,pi,a){
+ const ev=[], old=a.cardId?find(before,a.cardId):null;
+ if(a.type==='PLAY_CARD'&&old){
+   if(old.name==='Song of Binding')ev.push({type:'SONG_PLAYED',player:pi,cardId:old.id});
+   if(["Kantele","Kullervo's Sword","Smith's Tools",'Hidden Storehouse'].includes(old.name))ev.push({type:'RELIC_PLAYED',player:pi,cardId:old.id});
+   if(['Pohjola Maiden','Väinämöinen','Ilmarinen','Lemminkäinen','Great Eagle',"Lemminkäinen's Mother",'Louhi',"Hiisi's Elk",'Ice-Witch'].includes(old.name))
+     ev.push({type:'CHARACTER_ENTERED',player:pi,cardId:old.id,cardName:old.name,frostApplies:!!before.players[1-pi].flags?.frostApplies});
+ }
+ if(a.type==='CROSS_BACK'){
+   const c=before.players[pi].tuonela.find(x=>x.id===a.cardId);
+   if(c)ev.push({type:'CROSS_BACK_DECLARED',player:pi,cardId:c.id,deathMarks:c.deathMarks||0});
+ }
+ if(['ATTACK_CHARACTER','ATTACK_RESOLVE','RAID'].includes(a.type)){
+   const c=find(before,a.attackerId);
+   ev.push({type:'ATTACK_FINISHED',player:pi,cardId:a.attackerId,hasSword:before.players[pi].relics.some(x=>x.name==="Kullervo's Sword"&&x.attachedTo===a.attackerId)});
+   if(a.type==='RAID')ev.unshift({type:'RAID_DECLARED',player:pi,cardId:a.attackerId});
+   if(a.type==='RAID'&&c?.name==="Hiisi's Elk"&&a.targetType==='LOCATION')ev.push({type:'LOCATION_RAID_SUCCESS',player:pi,cardName:c.name,survived:!!find(after,c.id)});
+ }
+ return ev;
+}
+function legalActions(s,actor){
+ if(s.pendingChoice){
+   const w=N.currentWindow(s); if(!w)return [];
+   if(s.players[w.actor].faction!==actor)return [];
+   return [{type:'WINDOW_PASS'},{type:'WINDOW_RESOLVE',window:w}];
+ }
+ return M.legalActions(s,actor);
+}
+function applyAction(state,actor,a){
+ if(state.pendingChoice){
+   if(a.type==='WINDOW_PASS')return N.resolveWindow(state,{pass:true});
+   if(a.type==='WINDOW_RESOLVE'){const x={...a};delete x.type;delete x.window;return N.resolveWindow(state,x)}
+   throw Error('Timing window pending');
+ }
+ const pi=idx(state,actor), before=structuredClone(state);
+ let s=M.applyAction(state,actor,a);
+ for(const e of events(before,s,pi,a)){
+   const ws=N.windowsFor(s,e);
+   if(ws.length){s=N.openNext(s,e);break}
+ }
+ return s;
+}
+function parityReport(){
+ return {
+  physicalCards:48,factionCardRows:24,uniqueNames:23,
+  architecturalRoutes:48,
+  automaticallyWindowedNames:[
+   'Kantele','Väinölä',"Ilmarinen's Smithy",'Pohjola Maiden',
+   "Hiisi's Elk","Kullervo's Sword",'Frost of Pohjola','Chains of Pohjola','Gates of Pohjola'
+  ],
+  directMasterNames:["Smith's Tools",'Hidden Storehouse','Great Eagle',"Traveler's Provisions"],
+  fullNaturalParity:false,
+  remaining:[
+   'Questwatch must be opened from Quest-advance events emitted by the quest engine itself',
+   'Mother Search requires an automatic CHARACTER_CROSSED_DOWN event',
+   'Great Eagle/Protective Charm/Fortress require DAMAGE_PENDING/intercept replacement events before damage, not after it',
+   'Song of Binding and Protective Charm still need legal target choices attached to PLAY_CARD',
+   'Raid success/interception semantics must come from final combat event data rather than declaration inference',
+   'Frost of Pohjola duration ownership/reset still needs authoritative lifecycle state'
+  ]
+ };
+}
+
+__exports["ENGINE_VERSION"]=ENGINE_VERSION;
+__exports["newGame"]=newGame;
+__exports["legalActions"]=legalActions;
+__exports["applyAction"]=applyAction;
+__exports["parityReport"]=parityReport;
+return __exports;})();
+__mods["kalevala_v1_stage17j4_five_event_bridge_repair.mjs"]=(function(){const __exports={};
+/* Stage 17J.4 — Five-Event Quest Bridge Repair
+ Runtime integration amendment only; no balance/card-value changes. */
+const O=__mods["kalevala_v1_stage16o_auto_dispatch.mjs"];
+const Q=__mods["kalevala_v1_stage16f_quest_rune_engine.mjs"];
+const N=__mods["kalevala_v1_stage16n_timing_choice_windows.mjs"];
+const VERSION='17J4-FIVE-EVENT-BRIDGE';
+const newGame=O.newGame,isTerminal=O.isTerminal,legalActions=O.legalActions;
+const C=x=>structuredClone(x), idx=(s,a)=>typeof a==='number'?a:s.players.findIndex(p=>p.faction===a);
+const qs=s=>s.players.map(p=>p.quests.map(q=>({name:q.name,stage:q.stage,completed:!!q.completed})));
+const qev=(s,e)=>Q.processQuestEvent(s,e);
+
+function finishCompleted(beforeQ,s){
+ s=C(s);
+ for(let pi=0;pi<2;pi++)for(const b of beforeQ[pi]){
+  const p=s.players[pi],i=p.quests.findIndex(q=>q.name===b.name),a=i>=0?p.quests[i]:null;
+  if(a?.completed&&!b.completed){
+   const [done]=p.quests.splice(i,1); done.completed=true; done.frozen=false;
+   p.questHistory??=[]; p.questHistory.push(done);
+   const rune=Q.QUEST_DEFS[done.name]?.rune; if(rune&&!p.runes.includes(rune))p.runes.push(rune);
+   if(p.questDeck?.length){
+    const raw=p.questDeck.shift();
+    const next=typeof raw==='string'?{name:raw,stage:0,frozen:false,completed:false}:C(raw);
+    next.frozen=false; next.completed=false; next.stage??=0; p.quests.push(next);
+   }
+  }
+ }
+ return s;
+}
+function crossDownEvents(before,after){
+ const ev=[];
+ for(let pi=0;pi<2;pi++)for(const c of before.players[pi].living){
+  if(after.players[pi].tuonela.some(x=>x.id===c.id))ev.push({type:'CROSS_DOWN',player:pi,cardId:c.id});
+ }
+ return ev;
+}
+function newlyAdvanced(beforeQ,s){
+ const ev=[];
+ for(let pi=0;pi<2;pi++)for(const b of beforeQ[pi]){
+  const a=s.players[pi].quests.find(q=>q.name===b.name);
+  if(a&&!a.completed&&b.stage===0&&a.stage===1)ev.push({type:'QUEST_ADVANCED',player:pi,questName:a.name});
+ }
+ return ev;
+}
+function applyAction(state,actor,a){
+ const before=C(state), beforeQ=qs(state), pi=idx(state,actor);
+ if(pi<0)throw Error('Unknown actor');
+
+ // Questwatch resolution: the timing window itself is the authoritative successful Interrupt/Freeze.
+ if(state.pendingChoice&&a.type==='WINDOW_RESOLVE'){
+   const w=N.currentWindow(state);
+   let s=O.applyAction(state,actor,a);
+   if(w?.effect==='QUESTWATCH'){
+     s=qev(s,{type:'INTERRUPT_SUCCEEDED',player:w.actor});
+     s=qev(s,{type:'QUEST_FROZEN',player:w.actor,questOwner:w.questOwner,questName:w.questName});
+   }
+   return finishCompleted(beforeQ,s);
+ }
+
+ let s=O.applyAction(state,actor,a);
+
+ // 1 CROSS_DOWN — actual Living -> Tuonela transition after the action/effect fully resolves.
+ for(const e of crossDownEvents(before,s))s=qev(s,e);
+
+ // 2 CHARACTER_EXHAUSTED_LEGAL_ACTION — attacks are independently legal actions whose declaration exhausts.
+ if(['ATTACK_CHARACTER','ATTACK_RESOLVE','RAID'].includes(a.type))
+   s=qev(s,{type:'CHARACTER_EXHAUSTED_LEGAL_ACTION',player:pi,cardId:a.attackerId});
+
+ // 3/4 INTERRUPT_SUCCEEDED + QUEST_FROZEN are emitted above on resolved Questwatch windows.
+
+ // 5 RELIC_ABILITY_USED — only master EFFECT actions sourced from an actual Relic.
+ if(a.type==='EFFECT'&&a.sourceId&&before.players[pi].relics.some(c=>c.id===a.sourceId))
+   s=qev(s,{type:'RELIC_ABILITY_USED',player:pi,cardId:a.sourceId});
+
+ // Complete lifecycle is atomic after the event/effect that completed the Quest.
+ s=finishCompleted(beforeQ,s);
+
+ // A genuine Advance creates the one Questwatch Interrupt opportunity.
+ if(!s.pendingChoice){
+   for(const e of newlyAdvanced(beforeQ,s)){
+     if(N.windowsFor(s,e).length){s=N.openNext(s,e);break}
+   }
+ }
+ return s;
+}
+
+__exports["VERSION"]=VERSION;
+__exports["newGame"]=newGame;
+__exports["applyAction"]=applyAction;
+return __exports;})();
+__mods["kalevala_v1_stage17k1_deadlock_repair.mjs"]=(function(){const __exports={};
+/* Stage 17K.1 — pending-response actor routing repair. No rules/balance changes. */
+const J=__mods["kalevala_v1_stage17j4_five_event_bridge_repair.mjs"];
+const VERSION='17K1-RESPONSE-ACTOR-ROUTING';
+const newGame=J.newGame,isTerminal=J.isTerminal,applyAction=J.applyAction;
+function responseActor(state){
+ if(state.pendingChoice){
+  const w=state.pendingChoice.windows?.[state.pendingChoice.index];
+  if(w?.actor!=null)return state.players[w.actor].faction;
+ }
+ if(state.pending?.type==='INTERCEPT'&&state.pending.defender!=null)return state.players[state.pending.defender].faction;
+ if(state.interrupt?.responder!=null)return state.players[state.interrupt.responder].faction;
+ return state.players[state.active].faction;
+}
+function legalActions(state,actor=responseActor(state)){return J.legalActions(state,actor)}
+
+__exports["VERSION"]=VERSION;
+__exports["newGame"]=newGame;
+__exports["responseActor"]=responseActor;
+__exports["legalActions"]=legalActions;
+return __exports;})();
+__mods["kalevala_v1_stage17k7_authoritative_combat_quest_pipeline.mjs"]=(function(){const __exports={};
+/* Stage 17K.7 — consolidated deferred combat -> Quest -> lifecycle pipeline.
+   Runtime-lock amendment only. No balance/card-value changes. */
+const K=__mods["kalevala_v1_stage17k1_deadlock_repair.mjs"];
+const Q=__mods["kalevala_v1_stage16f_quest_rune_engine.mjs"];
+const VERSION='17K7-COMBAT-QUEST-PIPELINE';
+const newGame=K.newGame,isTerminal=K.isTerminal,responseActor=K.responseActor,legalActions=K.legalActions;
+const C=x=>structuredClone(x);
+
+function lifecycle(before,s){
+ s=C(s);
+ for(let pi=0;pi<2;pi++)for(const b of before[pi]){
+  const p=s.players[pi],i=p.quests.findIndex(q=>q.name===b.name),q=i>=0?p.quests[i]:null;
+  if(q?.completed&&!b.completed){
+   const [done]=p.quests.splice(i,1); done.frozen=false;
+   p.questHistory??=[];p.questHistory.push(done);
+   const rune=Q.QUEST_DEFS[done.name]?.rune;if(rune&&!p.runes.includes(rune))p.runes.push(rune);
+   if(p.questDeck?.length){
+    const raw=p.questDeck.shift();
+    const next=typeof raw==='string'?{name:raw,stage:0,frozen:false,completed:false}:C(raw);
+    next.stage??=0;next.frozen=false;next.completed=false;p.quests.push(next);
+   }
+  }
+ }
+ return s;
+}
+function applyAction(state,actor,a){
+ const qb=state.players.map(p=>p.quests.map(q=>({name:q.name,completed:!!q.completed})));
+ const pend=state.pending?.type==='INTERCEPT'?C(state.pending):null;
+ let s=K.applyAction(state,actor,a);
+ // The result does not exist at declaration. It exists only when the intercept decision resolves.
+ if(pend&&(a.type==='PASS_INTERCEPT'||a.type==='INTERCEPT')){
+   const pi=pend.attacker,id=pend.attackerId,atk=pend.attack;
+   const survived=!!s.players[pi].living.find(c=>c.id===id);
+   const targetType=atk.type==='ATTACK_RESOLVE'?'RESOLVE':atk.targetType;
+   const successful=a.type==='PASS_INTERCEPT'&&survived;
+   const beforeLoc=state.players[pend.defender].location;
+   const afterLoc=s.players[pend.defender].location;
+   const destroyedLocation=targetType==='LOCATION'&&successful&&!!beforeLoc&&!afterLoc;
+   s=Q.processQuestEvent(s,{type:'ATTACK_RESULT',player:pi,cardId:id,targetType,attackerSurvived:survived,successful,destroyedLocation});
+   s=lifecycle(qb,s);
+ }
+ return s;
+}
+
+__exports["VERSION"]=VERSION;
+__exports["newGame"]=newGame;
+__exports["applyAction"]=applyAction;
+return __exports;})();
+__mods["kalevala_v1_stage17c_strategy_ai.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Stage 17C Strategy-Aware AI
+   Balance instrumentation only: no game-rule mutations. */
+const M=__mods["kalevala_v1_stage16m_master_engine.mjs"];
+const VERSION='17C-STRATEGY-AI';
+const base={DECLARE_EPIC:1000,CLAIM_SHARD:700,ADVANCE_FORGE:400,ATTACK_RESOLVE:300,RAID:260,ATTACK_CHARACTER:220,PLAY_CARD:140,CROSS_BACK:100,END_PHASE:1,USE_ABILITY:-100};
+const weights={
+ conquest:{...base,ATTACK_RESOLVE:900,ATTACK_CHARACTER:600,RAID:500,CLAIM_SHARD:100,ADVANCE_FORGE:80,DECLARE_EPIC:200},
+ saga:{...base,DECLARE_EPIC:1200,CLAIM_SHARD:950,ADVANCE_FORGE:850,RAID:350,ATTACK_RESOLVE:180,ATTACK_CHARACTER:220},
+ mixed:{...base,DECLARE_EPIC:1100,CLAIM_SHARD:800,ADVANCE_FORGE:600,ATTACK_RESOLVE:550,RAID:450,ATTACK_CHARACTER:400}
+};
+function choose(state,actor,policy='mixed'){
+ const acts=M.legalActions(state,actor); if(!acts.length)return null;
+ const forced=acts.find(a=>a.type==='PASS_INTERCEPT')||acts.find(a=>a.type==='INTERRUPT');
+ if(forced)return forced;
+ const usable=acts.filter(a=>a.type!=='USE_ABILITY'), pool=usable.length?usable:acts, w=weights[policy]||weights.mixed;
+ const dynamic=a=>{
+   let v=w[a.type]??10;
+   const pi=state.players.findIndex(p=>p.faction===actor),opp=1-pi;
+   if(a.type==='ATTACK_RESOLVE'&&state.players[opp].resolve<=8)v+=500;
+   if(a.type==='DECLARE_EPIC')v+=2000;
+   if(a.type==='CLAIM_SHARD'&&state.players[pi].shards.length===1)v+=500;
+   if(a.type==='ADVANCE_FORGE'&&state.players[pi].forge?.stage===2)v+=500;
+   return v;
+ };
+ return [...pool].sort((a,b)=>dynamic(b)-dynamic(a)||JSON.stringify(a).localeCompare(JSON.stringify(b)))[0];
+}
+function run({seed,start='Kalevala',kPolicy='mixed',pPolicy='mixed',maxActions=600}){
+ let s=M.newGame({seed,controllers:{Kalevala:'AI',Pohjola:'AI'},startingFaction:start}),actions=0,reason='LIMIT';
+ while(actions<maxActions&&!M.isTerminal(s)){
+  const order=[s.active,1-s.active];let actor=null,acts=null;
+  for(const i of order){const f=s.players[i].faction,x=M.legalActions(s,f);if(x.length){actor=f;acts=x;break}}
+  if(!acts){reason='NO_LEGAL';break}
+  const pol=actor==='Kalevala'?kPolicy:pPolicy;
+  let a=choose(s,actor,pol);
+  try{s=M.applyAction(s,actor,a)}catch(e){
+    const fallback=acts.find(x=>x.type==='END_PHASE');
+    if(!fallback){reason='ERROR';break}
+    try{s=M.applyAction(s,actor,fallback)}catch{reason='ERROR';break}
+  }
+  actions++;
+ }
+ if(M.isTerminal(s))reason='TERMINAL';
+ return {seed,start,kPolicy,pPolicy,actions,reason,winner:s.winner||null,route:s.route||null};
+}
+function matrix(n=20){
+ const ps=['conquest','saga','mixed'],rows=[];
+ for(const kp of ps)for(const pp of ps)for(let i=0;i<n;i++)for(const start of ['Kalevala','Pohjola'])
+  rows.push(run({seed:`17C-${kp}-${pp}-${i}`,start,kPolicy:kp,pPolicy:pp}));
+ return rows;
+}
+function summary(rows){
+ const c=fn=>rows.filter(fn).length;
+ return {games:rows.length,terminal:c(r=>r.reason==='TERMINAL'),limits:c(r=>r.reason==='LIMIT'),errors:c(r=>r.reason==='ERROR'||r.reason==='NO_LEGAL'),
+ kalevalaWins:c(r=>r.winner==='Kalevala'),pohjolaWins:c(r=>r.winner==='Pohjola'),conquest:c(r=>r.route==='Conquest'),epic:c(r=>r.route==='Epic'),
+ avgActions:+(rows.reduce((a,r)=>a+r.actions,0)/rows.length).toFixed(2)};
+}
+
+__exports["VERSION"]=VERSION;
+__exports["choose"]=choose;
+__exports["run"]=run;
+__exports["matrix"]=matrix;
+__exports["summary"]=summary;
+return __exports;})();
+__mods["kalevala_v1_stage17k10_quest_aware_ai.mjs"]=(function(){const __exports={};
+/* Stage 17K.10 — Quest-aware simulation policy. NO game-rule changes. */
+const A=__mods["kalevala_v1_stage17c_strategy_ai.mjs"];
+function choose(state,actor,legal){
+ const pi=typeof actor==='number'?actor:state.players.findIndex(p=>p.faction===actor),p=state.players[pi];
+ // RETURN: if the exact DESCEND character can legally Cross Back on a later turn, complete Death Quest.
+ const dq=p.quests.find(q=>q.name==='Journey toward Tuonela'&&q.stage===1&&!q.frozen);
+ if(dq&&dq.stageTurn!=null&&state.turn>dq.stageTurn){
+   const x=legal.find(a=>a.type==='CROSS_BACK'&&a.cardId===dq.stageMeta?.cardId);if(x)return x;
+ }
+ return A.choose(state,actor,'saga');
+}
+
+__exports["choose"]=choose;
+return __exports;})();
+__mods["kalevala_v1_stage17l_natural_forge_sampo_gate.mjs"]=(function(){const __exports={};
+/* Stage 17L — Natural 3 Runes -> Forge I/II/III -> Sampo gate.
+   Integrates 17K.7 quest/combat pipeline with explicit distinct-Rune forge commitment.
+   No balance changes. */
+const K=__mods["kalevala_v1_stage17k7_authoritative_combat_quest_pipeline.mjs"];
+const AI=__mods["kalevala_v1_stage17k10_quest_aware_ai.mjs"];
+const VERSION='17L-NATURAL-FORGE-SAMPO-GATE';
+const newGame=K.newGame,isTerminal=K.isTerminal,responseActor=K.responseActor;
+const C=x=>structuredClone(x);
+function legalActions(s,actor){
+ const base=K.legalActions(s,actor),pi=typeof actor==='number'?actor:s.players.findIndex(p=>p.faction===actor),p=s.players[pi];
+ const used=p.forgeCommittedRunes||[];
+ return base.flatMap(a=>a.type!=='ADVANCE_FORGE'?[a]:p.runes.filter(r=>!used.includes(r)).map(r=>({...a,rune:r})));
+}
+function applyAction(state,actor,a){
+ if(a.type!=='ADVANCE_FORGE')return K.applyAction(state,actor,a);
+ const pi=typeof actor==='number'?actor:state.players.findIndex(p=>p.faction===actor),p=state.players[pi],used=p.forgeCommittedRunes||[];
+ if(!a.rune||!p.runes.includes(a.rune)||used.includes(a.rune))throw Error('Forge requires explicit uncommitted Rune');
+ const core=C(a);delete core.rune;
+ let s=K.applyAction(state,actor,core);s=C(s);s.players[pi].forgeCommittedRunes=[...used,a.rune];return s;
+}
+function choose(s,actor,acts){
+ const forge=acts.filter(a=>a.type==='ADVANCE_FORGE');
+ if(forge.length)return forge[0];
+ return AI.choose(s,actor,acts);
+}
+function run(seed,start,max=1100){
+ let s=newGame({seed,controllers:{Kalevala:'AI',Pohjola:'AI'},startingFaction:start}),peak=[0,0],forged=[false,false],err=null;
+ for(let k=0;k<max&&!isTerminal(s);k++){
+  for(let i=0;i<2;i++){peak[i]=Math.max(peak[i],s.players[i].forge||0);if((s.players[i].forge||0)>=3)forged[i]=true}
+  const actor=responseActor(s),acts=legalActions(s,actor);if(!acts.length){err='NO_LEGAL';break}
+  const a=(s.pending||s.pendingChoice||s.interrupt)?acts[0]:choose(s,actor,acts);
+  try{s=applyAction(s,actor,a)}catch(e){const end=acts.find(x=>x.type==='END_PHASE');if(!end){err=e.message;break}s=applyAction(s,actor,end)}
+ }
+ for(let i=0;i<2;i++){peak[i]=Math.max(peak[i],s.players[i].forge||0);if((s.players[i].forge||0)>=3)forged[i]=true}
+ return {terminal:isTerminal(s),err,players:s.players.map((p,i)=>({faction:p.faction,runes:p.runes.length,forgePeak:peak[i],forged:forged[i],committed:p.forgeCommittedRunes||[]}))};
+}
+
+__exports["VERSION"]=VERSION;
+__exports["newGame"]=newGame;
+__exports["legalActions"]=legalActions;
+__exports["applyAction"]=applyAction;
+__exports["choose"]=choose;
+__exports["run"]=run;
+return __exports;})();
+__mods["kalevala_v1_stage17l3_forge_flag_reset_repair.mjs"]=(function(){const __exports={};
+/* Stage 17L.3 — Forge per-turn flag reset repair + natural Sampo gate.
+   Runtime lifecycle amendment only; no balance changes. */
+const L=__mods["kalevala_v1_stage17l_natural_forge_sampo_gate.mjs"];
+const VERSION='17L3-FORGE-FLAG-RESET';
+const newGame=L.newGame,isTerminal=L.isTerminal,responseActor=L.responseActor,legalActions=L.legalActions,choose=L.choose;
+const C=x=>structuredClone(x);
+function applyAction(state,actor,a){
+ const pi=typeof actor==='number'?actor:state.players.findIndex(p=>p.faction===actor);
+ const beforeActive=state.active,beforePhase=state.phase;
+ let s=L.applyAction(state,actor,a);
+ // A player's per-turn Forge allowance resets when their new turn begins.
+ if(a.type==='END_PHASE'&&beforePhase===5&&s.active!==beforeActive){
+   s=C(s); const np=s.players[s.active]; np.flags??={}; np.flags.forgedThisTurn=false;
+ }
+ return s;
+}
+function run(seed,start,max=1200){
+ let s=newGame({seed,controllers:{Kalevala:'AI',Pohjola:'AI'},startingFaction:start}),peak=[0,0],err=null;
+ for(let k=0;k<max&&!isTerminal(s);k++){
+  for(let i=0;i<2;i++)peak[i]=Math.max(peak[i],s.players[i].forge||0);
+  const actor=responseActor(s),acts=legalActions(s,actor);if(!acts.length){err='NO_LEGAL';break}
+  const a=(s.pending||s.pendingChoice||s.interrupt)?acts[0]:choose(s,actor,acts);
+  try{s=applyAction(s,actor,a)}catch(e){const end=acts.find(x=>x.type==='END_PHASE');if(!end){err=e.message;break}s=applyAction(s,actor,end)}
+ }
+ for(let i=0;i<2;i++)peak[i]=Math.max(peak[i],s.players[i].forge||0);
+ return {terminal:isTerminal(s),err,players:s.players.map((p,i)=>({faction:p.faction,runes:p.runes.length,forgePeak:peak[i],forged:peak[i]>=3,committed:p.forgeCommittedRunes||[]}))};
+}
+
+__exports["VERSION"]=VERSION;
+__exports["newGame"]=newGame;
+__exports["applyAction"]=applyAction;
+__exports["run"]=run;
+return __exports;})();
+__mods["kalevala_v1_stage17l5_explicit_forge_legality_repair.mjs"]=(function(){const __exports={};
+/* Stage 17L.5 — explicit Forge legality repair.
+   ADVANCE_FORGE is exposed only with an actually available distinct,
+   uncommitted Rune. Runtime legality repair only; no balance changes. */
+const B=__mods["kalevala_v1_stage17l3_forge_flag_reset_repair.mjs"];
+const VERSION='17L5-EXPLICIT-FORGE-LEGALITY';
+const newGame=B.newGame,isTerminal=B.isTerminal,responseActor=B.responseActor;
+function legalActions(s,actor){
+ const raw=B.legalActions(s,actor),pi=typeof actor==='number'?actor:s.players.findIndex(p=>p.faction===actor),p=s.players[pi],used=p.forgeCommittedRunes||[];
+ return raw.filter(a=>a.type!=='ADVANCE_FORGE'||(a.rune&&p.runes.includes(a.rune)&&!used.includes(a.rune)));
+}
+const applyAction=B.applyAction;
+function choose(s,actor,acts){
+ const f=acts.find(a=>a.type==='ADVANCE_FORGE');if(f)return f;
+ return B.choose(s,actor,acts);
+}
+function run(seed,start,max=1200){
+ let s=newGame({seed,controllers:{Kalevala:'AI',Pohjola:'AI'},startingFaction:start}),peak=[0,0],invalidForge=0,err=null;
+ for(let k=0;k<max&&!isTerminal(s);k++){
+  for(let i=0;i<2;i++)peak[i]=Math.max(peak[i],s.players[i].forge||0);
+  const actor=responseActor(s),acts=legalActions(s,actor);if(!acts.length){err='NO_LEGAL';break}
+  for(const a of acts)if(a.type==='ADVANCE_FORGE'&&!a.rune)invalidForge++;
+  const a=(s.pending||s.pendingChoice||s.interrupt)?acts[0]:choose(s,actor,acts);
+  try{s=applyAction(s,actor,a)}catch(e){const end=acts.find(x=>x.type==='END_PHASE');if(!end){err=e.message;break}s=applyAction(s,actor,end)}
+ }
+ for(let i=0;i<2;i++)peak[i]=Math.max(peak[i],s.players[i].forge||0);
+ return {terminal:isTerminal(s),err,invalidForge,players:s.players.map((p,i)=>({faction:p.faction,runes:p.runes.length,forgePeak:peak[i],forged:peak[i]>=3}))};
+}
+
+__exports["VERSION"]=VERSION;
+__exports["newGame"]=newGame;
+__exports["legalActions"]=legalActions;
+__exports["applyAction"]=applyAction;
+__exports["choose"]=choose;
+__exports["run"]=run;
+return __exports;})();
+__mods["kalevala_v1_stage17m3_authoritative_combat_conflict_bridge.mjs"]=(function(){const __exports={};
+/* Stage 17M.3 — authoritative combat -> Conflict bridge.
+   Adds missing INTERCEPT defeat attribution; preserves first qualifying deed
+   per player per turn and deferred Shatter. No balance changes. */
+const B=__mods["kalevala_v1_stage17l5_explicit_forge_legality_repair.mjs"];
+const G=__mods["kalevala_v1_stage16g_saga_engine.mjs"];
+const VERSION='17M3-COMBAT-CONFLICT-BRIDGE';
+const newGame=B.newGame,isTerminal=B.isTerminal,responseActor=B.responseActor,legalActions=B.legalActions,choose=B.choose;
+const ids=a=>new Set((a||[]).map(x=>x.id));
+const lost=(before,after,pi)=>{const a=ids(before.players[pi].living),b=ids(after.players[pi].living);return [...a].some(id=>!b.has(id))};
+function applyAction(state,actor,a){
+ const before=structuredClone(state),pi=typeof actor==='number'?actor:state.players.findIndex(p=>p.faction===actor);
+ let s=B.applyAction(state,actor,a);
+ // 16J already registers direct ATTACK_CHARACTER defeats. Missing seam: INTERCEPT combat.
+ if(a.type==='INTERCEPT'&&before.sampo?.state==='FORGED'){
+   const attackerPi=before.pending?.attacker ?? before.pending?.attack?.player ?? (1-pi);
+   const defenderPi=1-attackerPi;
+   const attackerLost=lost(before,s,attackerPi),defenderLost=lost(before,s,defenderPi);
+   if(defenderLost)s=G.addConflictDeed(s,attackerPi,'defeat opposing Character (intercept combat)');
+   if(attackerLost)s=G.addConflictDeed(s,defenderPi,'defeat opposing Character (intercept combat)');
+   // Finish only after both simultaneous defeat deeds have been registered.
+   s=G.finishSagaAction(s);
+ }
+ return s;
+}
+function run(seed,start,max=1500){
+ let s=newGame({seed,controllers:{Kalevala:'AI',Pohjola:'AI'},startingFaction:start}),err=null,maxConflict=0,forged=false,shattered=false;
+ for(let k=0;k<max&&!isTerminal(s);k++){
+  forged ||= s.sampo?.state==='FORGED'||s.players.some(p=>(p.forge||0)>=3);
+  maxConflict=Math.max(maxConflict,s.conflict||0);shattered ||= s.sampo?.state==='SHATTERED';
+  const actor=responseActor(s),acts=legalActions(s,actor);if(!acts.length){err='NO_LEGAL';break}
+  const a=(s.pending||s.pendingChoice||s.interrupt)?acts[0]:choose(s,actor,acts);
+  try{s=applyAction(s,actor,a)}catch(e){const end=acts.find(x=>x.type==='END_PHASE');if(!end){err=e.message;break}s=applyAction(s,actor,end)}
+ }
+ maxConflict=Math.max(maxConflict,s.conflict||0);shattered ||= s.sampo?.state==='SHATTERED';
+ return {terminal:isTerminal(s),err,forged,maxConflict,shattered};
+}
+
+__exports["VERSION"]=VERSION;
+__exports["newGame"]=newGame;
+__exports["applyAction"]=applyAction;
+__exports["run"]=run;
+return __exports;})();
+__mods["kalevala_v1_stage17n4_authoritative_resolve_conflict_bridge.mjs"]=(function(){const __exports={};
+/* Stage 17N.4 — authoritative Resolve -> Conflict bridge repair.
+   Runtime-lock amendment only. No balance/rules changes. */
+const B=__mods["kalevala_v1_stage17m3_authoritative_combat_conflict_bridge.mjs"];
+const G=__mods["kalevala_v1_stage16g_saga_engine.mjs"];
+
+
+
+function piOf(s,f){return typeof f==='number'?f:s.players.findIndex(p=>p.faction===f)}
+function applyAction(state,actor,a){
+ const before=structuredClone(state);
+ // Capture the unresolved Resolve attack before PASS_INTERCEPT clears pending.
+ const pend=before.pending?.type==='INTERCEPT' ? before.pending : null;
+ let s=B.applyAction(state,actor,a);
+
+ if(a.type==='PASS_INTERCEPT' && pend && before.sampo?.state==='FORGED' && pend.attack?.type==='ATTACK_RESOLVE'){
+   const attackerPi=piOf(before,pend.attacker), defenderPi=piOf(before,pend.defender);
+   if(attackerPi>=0 && defenderPi>=0 && s.players[defenderPi].resolve < before.players[defenderPi].resolve){
+     s=G.addConflictDeed(s,attackerPi,'damage opposing Resolve');
+     s=G.finishSagaAction(s);
+   }
+ }
+ return s;
+}
+
+Object.assign(__exports,__mods["kalevala_v1_stage17m3_authoritative_combat_conflict_bridge.mjs"]);
+__exports["applyAction"]=applyAction;
+return __exports;})();
+__mods["kalevala_v1_stage17n_sampo_aware_ai.mjs"]=(function(){const __exports={};
+/* Stage 17N — Sampo-aware simulation AI.
+   Policy only: after Sampo is FORGED, prioritize legal actions likely to
+   produce qualifying Conflict deeds. No game-rule or balance changes. */
+const K=__mods["kalevala_v1_stage17m3_authoritative_combat_conflict_bridge.mjs"];
+
+function choose(state,actor,acts){
+ const forged=state.sampo?.state==='FORGED';
+ if(forged){
+   // Direct character combat can defeat an opposing Character.
+   const ac=acts.filter(a=>a.type==='ATTACK_CHARACTER');
+   if(ac.length)return ac[0];
+   // Unintercepted Resolve attacks are qualifying deeds.
+   const ar=acts.filter(a=>a.type==='ATTACK_RESOLVE');
+   if(ar.length)return ar[0];
+   // Location/Sampo raids can qualify via destruction/successful Raid.
+   const raid=acts.filter(a=>a.type==='RAID');
+   if(raid.length)return raid[0];
+  }
+ return K.choose(state,actor,acts);
+}
+const newGame=K.newGame,isTerminal=K.isTerminal,responseActor=K.responseActor,legalActions=K.legalActions,applyAction=K.applyAction;
+
+function run(seed,start,max=1600){
+ let s=newGame({seed,controllers:{Kalevala:'AI',Pohjola:'AI'},startingFaction:start}),err=null,forged=false,maxConflict=0,shattered=false,shatterPendingSafe=true;
+ for(let k=0;k<max&&!isTerminal(s);k++){
+  forged ||= s.sampo?.state==='FORGED'||s.players.some(p=>(p.forge||0)>=3);
+  maxConflict=Math.max(maxConflict,s.conflict||0);shattered ||= s.sampo?.state==='SHATTERED';
+  const actor=responseActor(s),acts=legalActions(s,actor);if(!acts.length){err='NO_LEGAL';break}
+  const a=(s.pending||s.pendingChoice||s.interrupt)?acts[0]:choose(s,actor,acts),was=s.sampo?.state;
+  try{s=applyAction(s,actor,a)}catch(e){const end=acts.find(x=>x.type==='END_PHASE');if(!end){err=e.message;break}s=applyAction(s,actor,end)}
+  maxConflict=Math.max(maxConflict,s.conflict||0);
+  if(was!=='SHATTERED'&&s.sampo?.state==='SHATTERED'){shattered=true;if(s.pending)shatterPendingSafe=false}
+ }
+ return {terminal:isTerminal(s),err,forged,maxConflict,shattered,shatterPendingSafe};
+}
+
+__exports["choose"]=choose;
+__exports["newGame"]=newGame;
+__exports["run"]=run;
+return __exports;})();
+__mods["kalevala_v1_stage17o4_legendary_aware_ai.mjs"]=(function(){const __exports={};
+/* Stage 17O.4 — Legendary-aware AI policy.
+   Policy only; no card/rule/balance changes. */
+const K=__mods["kalevala_v1_stage17n4_authoritative_resolve_conflict_bridge.mjs"];
+const {choose:sampoChoose}=__mods["kalevala_v1_stage17n_sampo_aware_ai.mjs"];
+const LEG=new Set(['Väinämöinen','Ilmarinen','Lemminkäinen','Louhi']);
+function piOf(s,a){return typeof a==='number'?a:s.players.findIndex(p=>p.faction===a)}
+function choose(state,actor,acts){
+ const pi=piOf(state,actor), p=state.players[pi];
+ // If a Legendary is legally playable, deploy one before ordinary fallback.
+ // Prefer Ilmarinen/Louhi for Saga relevance, then other Legendaries.
+ const plays=acts.filter(a=>a.type==='PLAY_CARD');
+ const lp=plays.map(a=>({a,c:(p.hand||[]).find(c=>c.id===(a.cardId||a.id))}))
+               .filter(x=>x.c&&LEG.has(x.c.name));
+ if(lp.length){
+   const rank=n=>n==='Ilmarinen'?0:n==='Louhi'?0:n==='Väinämöinen'?1:2;
+   lp.sort((x,y)=>rank(x.c.name)-rank(y.c.name)); return lp[0].a;
+ }
+ return sampoChoose(state,actor,acts);
+}
+
+
+Object.assign(__exports,__mods["kalevala_v1_stage17n4_authoritative_resolve_conflict_bridge.mjs"]);
+__exports["choose"]=choose;
+return __exports;})();
+__mods["kalevala_v1_stage17o9_epic_resource_planner.mjs"]=(function(){const __exports={};
+/* Stage 17O.9 — Epic Resource Planner.
+   Narrow AI policy only. At 2 Shards + 3 Rune types:
+   (1) if no Living Legendary, bank printed cost and play one;
+   (2) preserve Living Legendary;
+   (3) after it is eligible, bank 2 Vake and DECLARE_EPIC immediately.
+   No rules/card/balance changes. */
+const K=__mods["kalevala_v1_stage17n4_authoritative_resolve_conflict_bridge.mjs"];
+const {choose:baseChoose}=__mods["kalevala_v1_stage17o4_legendary_aware_ai.mjs"];
+const COST=new Map([['Ilmarinen',4],['Lemminkäinen',4],['Väinämöinen',5],['Louhi',5]]);
+const LEG=new Set(COST.keys());
+const piOf=(s,a)=>typeof a==='number'?a:s.players.findIndex(p=>p.faction===a);
+const findCard=(p,a)=>[...(p.hand||[]),...(p.living||[])].find(c=>c.id===(a.cardId||a.attackerId||a.id));
+function choose(state,actor,acts){
+ const pi=piOf(state,actor),p=state.players[pi], epic=acts.find(a=>a.type==='DECLARE_EPIC');
+ if(epic)return epic;
+ const track=(p.shards||[]).length>=2&&new Set(p.runes||[]).size>=3;
+ if(!track)return baseChoose(state,actor,acts);
+ const living=(p.living||[]).filter(c=>LEG.has(c.name));
+ if(!living.length){
+   const legalLegend=acts.map(a=>({a,c:findCard(p,a)})).filter(x=>x.a.type==='PLAY_CARD'&&x.c&&LEG.has(x.c.name))
+     .sort((x,y)=>COST.get(x.c.name)-COST.get(y.c.name));
+   if(legalLegend.length)return legalLegend[0].a;
+   // No affordable Legendary yet: bank resources, advance phase/turn.
+   return acts.find(a=>a.type==='END_PHASE')||baseChoose(state,actor,acts);
+ }
+ // Preserve every Living Legendary from voluntary exhaust/attack/raid/ability use.
+ const safe=acts.filter(a=>{
+   if(!['ATTACK_CHARACTER','ATTACK_RESOLVE','RAID','USE_ABILITY'].includes(a.type))return true;
+   const c=findCard(p,a);return !(c&&LEG.has(c.name));
+ });
+ // Once one is eligible, bank 2 Vake for declaration.
+ const eligible=living.some(c=>c.ready&&!c.frozen&&!c.arrival);
+ if(eligible&&((p.vake||0)+(p.tempVake||0)<2))
+   return safe.find(a=>a.type==='END_PHASE')||safe[0]||acts[0];
+ return baseChoose(state,actor,safe.length?safe:acts);
+}
+
+
+Object.assign(__exports,__mods["kalevala_v1_stage17n4_authoritative_resolve_conflict_bridge.mjs"]);
+__exports["choose"]=choose;
+return __exports;})();
+__mods["kalevala_v1_stage17o14_legal_action_selection_guard.mjs"]=(function(){const __exports={};
+/* Stage 17O.14 — Legal-action selection guard.
+   Enforces architecture invariant: AI may only return an action present in the
+   authoritative legalActions set supplied to it. No rules/balance changes. */
+const K=__mods["kalevala_v1_stage17n4_authoritative_resolve_conflict_bridge.mjs"];
+const {choose:plannerChoose}=__mods["kalevala_v1_stage17o9_epic_resource_planner.mjs"];
+const stable=x=>JSON.stringify(x,Object.keys(x).sort());
+function same(a,b){return stable(a)===stable(b)}
+function choose(state,actor,acts){
+ const proposed=plannerChoose(state,actor,acts);
+ const exact=acts.find(a=>same(a,proposed));
+ if(exact)return exact;
+ // Safe deterministic fallback: phase advance if available, otherwise first legal action.
+ return acts.find(a=>a.type==='END_PHASE')||acts[0];
+}
+
+
+Object.assign(__exports,__mods["kalevala_v1_stage17n4_authoritative_resolve_conflict_bridge.mjs"]);
+__exports["choose"]=choose;
+return __exports;})();
+__mods["kalevala_v1_stage17o21_ability_legality_resolver_closure.mjs"]=(function(){const __exports={};
+/* Stage 17O.21 — Ability legality/resolver closure.
+   Runtime-lock amendment: ordinary USE_ABILITY actions lacking an authoritative
+   resolver are not exposed. Choice-window USE_ABILITY remains untouched.
+   No rule/card/balance changes. */
+const B=__mods["kalevala_v1_stage17o14_legal_action_selection_guard.mjs"];
+
+const UNRESOLVED=new Set(['PREVENT_1','STORE_VAKE','RELEASE_VAKE','TOOLS_DISCOUNT']);
+function legalActions(s,actor){
+ return B.legalActions(s,actor).filter(a=>!(a.type==='USE_ABILITY'&&a.ability&&UNRESOLVED.has(a.ability)));
+}
+const applyAction=B.applyAction;
+
+Object.assign(__exports,__mods["kalevala_v1_stage17o14_legal_action_selection_guard.mjs"]);
+__exports["legalActions"]=legalActions;
+__exports["applyAction"]=applyAction;
+return __exports;})();
+__mods["kalevala_v1_stage17o23_final_epic_response_routing_repair.mjs"]=(function(){const __exports={};
+/* Stage 17O.23 — Final Epic response routing repair.
+   Runtime-lock amendment: responseActor honors FINAL_EPIC interrupt.actor.
+   Everything else delegates to 17O.21. No rule/card/balance changes. */
+const B=__mods["kalevala_v1_stage17o21_ability_legality_resolver_closure.mjs"];
+
+function responseActor(s){
+ if(s.interrupt?.kind==='FINAL_EPIC' && s.interrupt.actor!==undefined && s.interrupt.actor!==null)
+   return typeof s.interrupt.actor==='number' ? s.players[s.interrupt.actor].faction : s.interrupt.actor;
+ if(typeof B.responseActor==='function')return B.responseActor(s);
+ if(s.pendingChoice){
+   const w=s.pendingChoice.windows?.[s.pendingChoice.index];
+   if(w?.actor!=null)return s.players[w.actor].faction;
+ }
+ if(s.pending?.type==='INTERCEPT'&&s.pending.defender!=null)return s.players[s.pending.defender].faction;
+ if(s.interrupt?.responder!=null)return s.players[s.interrupt.responder].faction;
+ return s.players[s.active].faction;
+}
+
+Object.assign(__exports,__mods["kalevala_v1_stage17o21_ability_legality_resolver_closure.mjs"]);
+__exports["responseActor"]=responseActor;
+return __exports;})();
+__mods["kalevala_v1_stage17p24_tuonela_authoritative_chain_amendment.mjs"]=(function(){const __exports={};
+/* Stage 17P.24 — Canonical Tuonela amendment on current authoritative chain.
+   Frozen rule: after Sampo Shatters, a successful CROSS_BACK marks that returned
+   Character until controller's End; separate 1-Väke CLAIM_SHARD consumes it.
+   Delegates all other behavior to 17O.23 current authoritative runtime. */
+const B=__mods["kalevala_v1_stage17o23_final_epic_response_routing_repair.mjs"];
+
+const piOf=(s,a)=>typeof a==='number'?a:s.players.findIndex(p=>p.faction===a);
+const total=p=>(p.vake||0)+(p.tempVake||0);
+function claimCost(s,pi){
+ let cost=1,op=s.players[1-pi];
+ if(op?.faction==='Pohjola'&&(op.living||[]).some(c=>c.name==='Louhi')&&!op.flags?.louhiTaxUsed)cost++;
+ return cost;
+}
+function legalActions(s,actor){
+ let out=B.legalActions(s,actor),pi=piOf(s,actor); if(pi<0)return out;
+ const p=s.players[pi];
+ out=out.filter(a=>!(a.type==='CLAIM_SHARD'&&a.shard==='Tuonela'));
+ if(s.sampo?.state==='SHATTERED'&&s.shards?.Tuonela==null&&p.flags?.returnedFromTuonelaCardId&&
+    (p.living||[]).some(c=>c.id===p.flags.returnedFromTuonelaCardId)){
+   const cost=claimCost(s,pi);
+   if(total(p)>=cost)out.push({type:'CLAIM_SHARD',shard:'Tuonela',cost,returnedCardId:p.flags.returnedFromTuonelaCardId});
+ }
+ return out;
+}
+function applyAction(state,actor,a){
+ const pi=piOf(state,actor);
+ if(a.type==='CLAIM_SHARD'&&a.shard==='Tuonela'){
+   // Existing authoritative resolver would seek/exhaust a Tuonela Character, so
+   // resolve this frozen replacement payment directly while preserving action log.
+   let s=structuredClone(state),p=s.players[pi],cost=a.cost??claimCost(s,pi);
+   let tv=Math.min(p.tempVake||0,cost);p.tempVake=(p.tempVake||0)-tv;cost-=tv;p.vake-=cost;
+   p.flags??={};delete p.flags.returnedFromTuonelaCardId;
+   s.shards.Tuonela=p.faction;if(!p.shards.includes('Tuonela'))p.shards.push('Tuonela');
+   s.revision=(s.revision||0)+1;s.actionLog?.push({revision:s.revision,turn:s.turn,actor:pi,action:a});
+   return s;
+ }
+ const preTurn=state.turn, wasCross=a.type==='CROSS_BACK',cid=a.cardId;
+ let s=B.applyAction(state,actor,a);
+ if(pi>=0){
+   s.players[pi].flags??={};
+   if(wasCross&&s.sampo?.state==='SHATTERED'&&(s.players[pi].living||[]).some(c=>c.id===cid))
+      s.players[pi].flags.returnedFromTuonelaCardId=cid;
+   if(a.type==='END_PHASE'&&s.turn!==preTurn)delete s.players[pi].flags.returnedFromTuonelaCardId;
+ }
+ return s;
+}
+
+Object.assign(__exports,__mods["kalevala_v1_stage17o23_final_epic_response_routing_repair.mjs"]);
+__exports["legalActions"]=legalActions;
+__exports["applyAction"]=applyAction;
+return __exports;})();
+__mods["kalevala_v1_stage17p42_great_eagle_phantom_effect_repair.mjs"]=(function(){const __exports={};
+/* Stage 17P.42 — Great Eagle phantom PREVENT_DAMAGE runtime-lock repair.
+Canonical Prototype V1 Great Eagle is vanilla 3/2 cost 2. The stale 16B/16M
+prototype hook exposed an unauthorized activated PREVENT_DAMAGE EFFECT.
+This amendment removes only that Great Eagle EFFECT from legality and rejects
+direct attempts to apply it; all other 17P.24 behavior delegates unchanged. */
+const B=__mods["kalevala_v1_stage17p24_tuonela_authoritative_chain_amendment.mjs"];
+
+const isPhantom=a=>a?.type==='EFFECT'&&a?.effect==='PREVENT_DAMAGE'&&a?.sourceId;
+function eagleSource(s,a){for(const p of s.players)for(const c of p.living||[])if(c.id===a.sourceId)return c.name==='Great Eagle';return false}
+function legalActions(s,actor){return B.legalActions(s,actor).filter(a=>!(isPhantom(a)&&eagleSource(s,a)))}
+function applyAction(s,actor,a){if(isPhantom(a)&&eagleSource(s,a))throw Error('Unauthorized Great Eagle PREVENT_DAMAGE effect');return B.applyAction(s,actor,a)}
+
+Object.assign(__exports,__mods["kalevala_v1_stage17p24_tuonela_authoritative_chain_amendment.mjs"]);
+__exports["legalActions"]=legalActions;
+__exports["applyAction"]=applyAction;
+return __exports;})();
+__mods["Kalevala_TCG_Prototype_V1_0_RUNTIME_LOCKED.mjs"]=(function(){const __exports={};
+/* Kalevala TCG — Prototype V1 runtime integration candidate.
+Integrates promoted 17Q.35 setup into the repaired 17P.42 authoritative chain.
+Side-neutral: starter is state-derived; no human/faction assumptions. */
+const B=__mods["kalevala_v1_stage17p42_great_eagle_phantom_effect_repair.mjs"];
+
+
+const starterOf=s=>s?.flags?.v1StartingPlayer ?? s?.startingPlayer ?? 0;
+const isStarterFirstMain=(s,pi)=>
+  s.turn===1 && s.phase===3 && pi===starterOf(s);
+
+function newGame(opts={}){
+  const s=B.newGame({...opts,openingHand:7});
+  s.flags??={};
+  s.flags.v1StartingPlayer=s.active;
+  s.flags.v1StarterFirstMainPlays=0;
+  // Clean provisional alpha wording from public event log.
+  if(Array.isArray(s.eventLog) && s.eventLog.length)
+    s.eventLog[0]='T1 Match begins. Opening hand = 7. No mulligan.';
+  return s;
+}
+
+function legalActions(s,actor){
+  const raw=B.legalActions(s,actor);
+  const pi=typeof actor==='number'?actor:s.players.findIndex(p=>p.faction===actor);
+  if(pi<0 || !isStarterFirstMain(s,pi) || (s.flags?.v1StarterFirstMainPlays||0)<1) return raw;
+  return raw.filter(a=>a.type!=='PLAY_CARD');
+}
+
+function applyAction(s,actor,a){
+  const pi=typeof actor==='number'?actor:s.players.findIndex(p=>p.faction===actor);
+  const scoped=pi>=0 && isStarterFirstMain(s,pi) && a?.type==='PLAY_CARD';
+  if(scoped && (s.flags?.v1StarterFirstMainPlays||0)>=1)
+    throw Error('V1 setup rule: starting player may play at most one card during first Main phase.');
+  const r=B.applyAction(s,actor,a);
+  if(scoped){
+    r.flags??={};
+    r.flags.v1StarterFirstMainPlays=(r.flags.v1StarterFirstMainPlays||0)+1;
+  }
+  return r;
+}
+
+Object.assign(__exports,__mods["kalevala_v1_stage17p42_great_eagle_phantom_effect_repair.mjs"]);
+__exports["newGame"]=newGame;
+__exports["legalActions"]=legalActions;
+__exports["applyAction"]=applyAction;
+__exports["isTerminal"]=(s)=>s.winner!=null;
+return __exports;})();
+__mods["kalevala_v1_stage17o31_journey_north_identity_planner.mjs"]=(function(){const __exports={};
+/* Stage 17O.31 — General Quest Objective Planner.
+   Policy only. Chooses ONLY from authoritative legal actions and prioritizes
+   legal actions that directly set up/progress visible active Quest stages.
+   No rules/card/balance changes. Guard remains authoritative. */
+const K=__mods["kalevala_v1_stage17o23_final_epic_response_routing_repair.mjs"];
+const {choose:guardedChoose}=__mods["kalevala_v1_stage17o14_legal_action_selection_guard.mjs"];
+const piOf=(s,a)=>typeof a==='number'?a:s.players.findIndex(p=>p.faction===a);
+const quests=p=>(p.quests||p.activeQuests||[]).filter(q=>typeof q!=='string'&&!q.completed);
+const card=(p,a)=>(p.hand||[]).find(c=>c.id===(a.cardId||a.id));
+const pick=(acts,types)=>{for(const t of types){const a=acts.find(x=>x.type===t);if(a)return a}return null};
+function choose(state,actor,acts){
+ const pi=piOf(state,actor),p=state.players[pi],qs=quests(p);
+ for(const q of qs){
+  const n=q.name||q.id,st=q.stage||0;
+  // Kalevala
+  if(n==='Deed of the Hunter'){
+    if(st===0){const a=acts.find(x=>x.type==='PLAY_CARD'&&card(p,x)?.type==='Character');if(a)return a}
+    else {const a=pick(acts,['ATTACK_CHARACTER']);if(a)return a}
+  }
+  if(n==='Catching the Great Pike'){
+    const a=pick(acts,['ATTACK_CHARACTER','RAID']);if(a)return a;
+  }
+  if(n==='Journey toward Tuonela'){
+    if(st===1){const a=pick(acts,['CROSS_BACK']);if(a)return a}
+  }
+  if(n==='Missing Words'){
+    if(st===0){const a=acts.find(x=>x.type==='PLAY_CARD'&&card(p,x)?.type==='Song');if(a)return a}
+    else {const a=acts.find(x=>x.type==='PLAY_CARD'&&card(p,x)?.type==='Song');if(a)return a}
+  }
+  if(n==="Smith's Trial v2"||n==="Smith's Trial"){
+    if(st===0){const a=acts.find(x=>x.type==='PLAY_CARD'&&card(p,x)?.type==='Relic');if(a)return a}
+    else {const a=acts.find(x=>x.type==='PLAY_CARD'&&card(p,x)?.type==='Relic')||pick(acts,['ADVANCE_FORGE']);if(a)return a}
+  }
+  // Pohjola
+  if(n==="Hunt Hiisi's Elk"){const a=st===0?acts.find(x=>x.type==='PLAY_CARD'&&card(p,x)?.name==="Hiisi's Elk"):pick(acts,['ATTACK_CHARACTER','RAID']);if(a)return a}
+  if(n==='Journey to the North'){
+    if(st===1){
+      const departed=q.stageMeta?.cardId;
+      const a=acts.find(x=>(x.type==='ATTACK_RESOLVE'||(x.type==='RAID'&&x.targetType==='LOCATION'))&&x.attackerId===departed);
+      if(a)return a;
+    } else {
+      const a=pick(acts,['ATTACK_CHARACTER','ATTACK_RESOLVE','RAID','USE_ABILITY']);if(a)return a;
+    }
+  }
+  if(n==='Secrets of Pohjola'&&st===1){const a=acts.find(x=>x.type==='PLAY_CARD'&&card(p,x)?.name==='Louhi');if(a)return a}
+  if(n==='Treasures of Pohjola'){const a=acts.find(x=>x.type==='PLAY_CARD'&&['Relic','Location'].includes(card(p,x)?.type));if(a)return a}
+ }
+ return guardedChoose(state,actor,acts);
+}
+
+
+Object.assign(__exports,__mods["kalevala_v1_stage17o23_final_epic_response_routing_repair.mjs"]);
+__exports["choose"]=choose;
+return __exports;})();
+__mods["kalevala_v1_stage17p82_canonical_ai_policy_LOCKED.mjs"]=(function(){const __exports={};
+/* Stage 17P.82 — Canonical AI Policy LOCKED.
+Policy stack only; no game-rule/card/stat changes.
+Order: 17O.31 quest planner -> legendary banking -> adaptive Location -> certified Rune<=1 Kantele bank. */
+const {choose:baseChoose}=__mods["kalevala_v1_stage17o31_journey_north_identity_planner.mjs"];
+const {CARD_LIBRARY}=__mods["kalevala_v1_stage16b_state_model.mjs"];
+
+const D=c=>CARD_LIBRARY[c?.name];
+const isLeg=c=>D(c)?.type==='Legendary Character';
+const isLoc=c=>D(c)?.type==='Location';
+const locs=p=>[...(p.locations||[]),...(p.location?[p.location]:[])].filter(Boolean);
+const piOf=(s,a)=>typeof a==='number'?a:s.players.findIndex(p=>p.faction===a);
+function qProtect(p,a){
+ const qs=(p.quests||[]).filter(q=>!q.completed);
+ if(['ADVANCE_FORGE','CLAIM_SHARD','DECLARE_EPIC','CROSS_BACK','ATTACK_CHARACTER','ATTACK_RESOLVE','RAID','USE_ABILITY'].includes(a.type))return true;
+ return a.type==='PLAY_CARD'&&qs.some(q=>(q.stage??0)>0);
+}
+function integratedBase(s,actor,acts){
+ const p=s.players[piOf(s,actor)];
+ let a=baseChoose(s,actor,acts);
+ const legs=(p.hand||[]).filter(isLeg).sort((a,b)=>D(a).cost-D(b).cost||a.id.localeCompare(b.id));
+ if(legs.length&&(p.vake||0)<D(legs[0]).cost&&a.type==='PLAY_CARD'&&!qProtect(p,a)&&(p.living||[]).length>=1&&p.resolve>=10){
+   const e=acts.find(x=>x.type==='END_PHASE');if(e)return e;
+ }
+ return a;
+}
+function choose(s,actor,acts){
+ const p=s.players[piOf(s,actor)],base=integratedBase(s,actor,acts);
+ if(!locs(p).length&&(p.living||[]).length>=1&&p.resolve>=12&&!qProtect(p,base)){
+   const cand=acts.filter(a=>a.type==='PLAY_CARD'&&(p.hand||[]).some(c=>c.id===a.cardId&&isLoc(c)))
+    .map(a=>({a,c:(p.hand||[]).find(c=>c.id===a.cardId)}))
+    .sort((x,y)=>D(x.c).cost-D(y.c).cost||x.c.name.localeCompare(y.c.name)||x.c.id.localeCompare(y.c.id));
+   if(cand.length)return cand[0].a;
+ }
+ if(p.faction==='Kalevala'&&(p.living||[]).length===0&&new Set(p.runes||[]).size<=1&&base.type==='PLAY_CARD'){
+   const chars=(p.hand||[]).filter(c=>['Character','Legendary Character'].includes(D(c)?.type));
+   const inst=(p.hand||[]).find(c=>c.id===base.cardId);
+   if(chars.length&&(D(inst)?.name||inst?.name)==='Kantele'){
+     const cheapest=Math.min(...chars.map(c=>D(c).cost)),v=p.vake??p.väke??0;
+     if((cheapest-v)<=1){const pass=acts.find(a=>a.type==='END_PHASE');if(pass)return pass;}
+   }
+ }
+ return base;
+}
+
+__exports["choose"]=choose;
+return __exports;})();
+__mods["kalevala_v1_stage17q12_canonical_ai_policy_LOCKED.mjs"]=(function(){const __exports={};
+/* Stage 17Q.12 — CANONICAL AI POLICY LOCK
+Promotes the independently certified, side-neutral Tuonela sequence-aware layer
+over the previously locked 17P.82 policy stack.
+AI policy only. No tabletop/card/stat/rule changes.
+
+Promoted Tuonela behavior:
+1) If authoritative legalActions already exposes CLAIM_SHARD:Tuonela, take it.
+2) After Sampo Shattered, while Tuonela is unclaimed, if CROSS_BACK is legal,
+   prioritize it only when the complete Cross Back + separate Claim sequence
+   is already affordable: Cross Back action cost + 1 Väke.
+3) No proactive 3->4 Väke banking rule (17Q.9 rejected).
+*/
+const {choose:priorChoose}=__mods["kalevala_v1_stage17p82_canonical_ai_policy_LOCKED.mjs"];
+
+function choose(s,actor,acts){
+ const pi=typeof actor==='number'?actor:s.players.findIndex(p=>p.faction===actor);
+ const p=s.players[pi], total=(p?.vake||0)+(p?.tempVake||0);
+
+ const claim=acts.find(a=>a.type==='CLAIM_SHARD'&&a.shard==='Tuonela');
+ if(claim)return claim;
+
+ if(s.sampo?.state==='SHATTERED'&&s.shards?.Tuonela==null){
+   const back=acts.find(a=>a.type==='CROSS_BACK');
+   if(back&&total>=(back.cost??3)+1)return back;
+ }
+ return priorChoose(s,actor,acts);
+}
+
+
+Object.assign(__exports,__mods["kalevala_v1_stage17p82_canonical_ai_policy_LOCKED.mjs"]);
+__exports["choose"]=choose;
+return __exports;})();
+__mods["Kalevala_TCG_V1_Stage18R8_Playtest_Ready.mjs"]=(function(){const __exports={};
+const K=__mods["Kalevala_TCG_Prototype_V1_0_RUNTIME_LOCKED.mjs"];
+const {CARD_LIBRARY,PHASES}=__mods["kalevala_v1_stage16b_state_model.mjs"];
+const {QUEST_DEFS}=__mods["kalevala_v1_stage16f_quest_rune_engine.mjs"];
+const {choose:aiChoose}=__mods["kalevala_v1_stage17q12_canonical_ai_policy_LOCKED.mjs"];
+let local=0, selected=null, aiBusy=false, uiLog=[];
+let state;
+function startGame(faction="Kalevala",starter=faction){
+ local=faction==="Kalevala"?0:1; selected=null; uiLog=[];
+ state=K.newGame({seed:"Stage18R8-"+Date.now(),startingFaction:starter,controllers:{Kalevala:faction==="Kalevala"?"HUMAN":"AI",Pohjola:faction==="Pohjola"?"HUMAN":"AI"}});
+ uiLog.push(`New game — you control ${faction}. ${starter} starts.`);
+ render(); queueMicrotask(driveAI);
+}
+globalThis.startKalevalaPlaytest=startGame;
+function actorIndex(a){return typeof a==="number"?a:state.players.findIndex(p=>p.faction===a)}
+function isResponse(){return !!(state.pending||state.pendingChoice||state.interrupt)}
+async function driveAI(){
+ if(aiBusy||K.isTerminal(state))return;
+ aiBusy=true;
+ try{
+  for(let guard=0;guard<200&&!K.isTerminal(state);guard++){
+   const actor=K.responseActor(state), pi=actorIndex(actor);
+   if(pi===local)break;
+   const acts=K.legalActions(state,actor); if(!acts.length)throw Error("AI has no legal actions");
+   const a=isResponse()?(acts.find(x=>x.type==="PASS_INTERCEPT")||acts[0]):aiChoose(state,actor,acts);
+   if(!a||!acts.some(x=>JSON.stringify(x)===JSON.stringify(a)))throw Error("AI chose non-legal action");
+   uiLog.push(`AI ${state.players[pi].faction}: ${actionLabel(a)}`);
+   state=K.applyAction(state,actor,a);
+  }
+ } catch(err) {
+   uiLog.push(`AI ERROR: ${err?.message||err}`);
+   globalThis.__KALEVALA_LAST_ERROR=String(err?.stack||err);
+ } finally {aiBusy=false;render()}
+}
+const $=s=>document.querySelector(s), E=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const def=c=>CARD_LIBRARY[c?.name]||{}, text=c=>c?.name==="Great Eagle"?"":(def(c).text||"");
+function statuses(c){let a=[];if(c.damage)a.push(`DMG ${c.damage}`);if(c.deathMarks)a.push(`☠${c.deathMarks}`);if(c.frozen)a.push("FROZEN");if(c.journeyed)a.push("JOURNEYED");if(c.returnedFromTuonela)a.push("RETURNED");if(c.ready===false&&c.zone==="LIVING")a.push("EXH");return a.join(" · ")}
+function card(c,legalIds=new Set()){let d=def(c),leg=/Legendary/.test(d.type||"");return `<button class="card ${leg?"legendary":""} ${c.frozen?"frozen":""} ${legalIds.has(c.id)?"legal":""}" data-id="${E(c.id)}"><b>${E(c.name)}</b><span class="cost">${d.cost??""}</span><small>${E(d.type||"")}</small>${d.power?`<span class="stats">${d.power}/${d.health}</span>`:""}<span class="status">${E(statuses(c))}</span></button>`}
+function quest(q){let d=QUEST_DEFS[q.name]||{},stage=d.stages?.[q.stage]||"COMPLETE";return `<button class="card quest ${q.frozen?"frozen":""}" data-quest="${E(q.name)}"><b>${E(q.name.replace(" v2",""))}</b><small>${E(d.rune||"")} Rune</small><p>${q.completed?"COMPLETE":E(stage)} · ${Math.min(q.stage,2)}/2</p>${q.frozen?"<strong>FROZEN</strong>":""}</button>`}
+function zone(t,a=[],legal=new Set()){return `<div class="panel"><h3>${t} <span>${a.length}</span></h3><div class="row">${a.map(c=>card(c,legal)).join("")||"<small>Empty</small>"}</div></div>`}
+function questZone(p){return `<div class="panel"><h3>Quests</h3><div class="row">${(p.quests||[]).filter(q=>!q.completed).map(quest).join("")}</div></div>`}
+function runeHistory(p){return `<div class="panel"><h3>Rune History</h3><div class="runes">${["Knowledge","Creation","Journey","Death","Hunt"].map(r=>`<span class="rune">${p.runes?.includes(r)?"◆":"◇"} ${r}</span>`).join("")}</div></div>`}
+function hud(p){return `<div class="panel minor"><h3>${E(p.faction)}</h3><div class="turn">Turn ${state.turn} · ${PHASES[state.phase]||state.phase}${state.players[state.active]===p?" · ACTIVE":""}</div><div>Resolve <b class="value">${p.resolve}</b></div><div>Väke <b class="value">${p.vake}</b> <small>+${p.tempVake||0} temp</small></div><small>Deck ${p.deck?.length??p.deckCount??0} · Memory ${p.memory?.length??0}</small></div>`}
+function legal(){try{const a=K.responseActor(state);return actorIndex(a)===local?(K.legalActions(state,a)||[]):[]}catch{return []}}
+const SOURCE_KEYS=["cardId","sourceId","attackerId","characterId","relicId"];
+const TARGET_KEYS=["targetId","defenderId","locationId","questId","targetCardId"];
+function idsFrom(acts){let s=new Set;for(let a of acts)for(let k of [...SOURCE_KEYS,...TARGET_KEYS])if(a[k])s.add(a[k]);return s}
+function actionTouches(a,id,keys=SOURCE_KEYS){return keys.some(k=>a[k]===id)}
+function actionLabel(a){
+ const names={PLAY_CARD:"Play",USE_ABILITY:"Use ability",ATTACK_CHARACTER:"Attack character",ATTACK_RESOLVE:"Attack Resolve",RAID:"Raid",INTERCEPT:"Intercept",PASS_INTERCEPT:"Pass intercept",CROSS_BACK:"Cross Back",ADVANCE_FORGE:"Forge",CLAIM_SHARD:"Claim Shard",DECLARE_EPIC:"Declare Final Epic",INTERRUPT:"Interrupt",END_PHASE:"End phase"};
+ let base=names[a.type]||a.type, detail=[];
+ for(const k of ["targetId","defenderId","locationId","questId","shard","mode","choice"])if(a[k]!=null)detail.push(String(a[k]));
+ return detail.length?`${base} → ${detail.join(" · ")}`:base;
+}
+function chooseSource(id){
+ const acts=legal(), related=acts.filter(a=>actionTouches(a,id));
+ if(!related.length){inspect(id);return}
+ selected=id; render();
+}
+function selectedActions(){
+ const acts=legal(); if(!selected)return acts;
+ return acts.filter(a=>actionTouches(a,selected));
+}
+function globalActions(){
+ return legal().filter(a=>!SOURCE_KEYS.some(k=>a[k]));
+}
+function unavailableReason(c){
+ const p=state.players[local],d=def(c),acts=legal();
+ if((p.hand||[]).some(x=>x.id===c.id)){
+   const total=(p.vake||0)+(p.tempVake||0);
+   if(state.phase!==3)return `Playable during Main phase · currently ${PHASES[state.phase]||state.phase}`;
+   if(total<(d.cost||0))return `Needs ${d.cost||0} Väke · you have ${total}`;
+   if(state.turn===1&&state.active===local&&(state.flags?.v1StarterFirstMainPlays||0)>=1)return "Opening rule: starting player has already played one card this Main phase.";
+   if(!acts.some(a=>a.type==="PLAY_CARD"&&a.cardId===c.id))return "No legal play for this card right now.";
+ }
+ return "";
+}
+function renderSide(pi,isLocal){let p=state.players[pi], acts=isLocal?legal():[], ids=idsFrom(acts),perms=[...(p.location?[p.location]:[]),...(p.relics||[])];
+ if(!isLocal)return hud(p)+questZone(p)+zone("Living",p.living||[])+`<div>${runeHistory(p)}${zone("Tuonela",p.tuonela||[])}</div>`;
+ const shown=selected?selectedActions():globalActions();
+ return hud(p)+`<div class="localmain">${zone("Living",p.living||[],ids)}<div id="actions">${selected?`<button data-clear>Cancel</button>`:""}${shown.map((a,i)=>`<button class="${a.type==="END_PHASE"?"continue":""}" data-act="${i}">${a.type==="END_PHASE"?"CONTINUE → "+(PHASES[Math.min(state.phase+1,5)]||"NEXT"):E(actionLabel(a))}</button>`).join("")}</div><div id="hand">${(p.hand||[]).map(c=>card(c,ids)).join("")}</div></div><div>${questZone(p)}${runeHistory(p)}${zone("Locations / Relics",perms,ids)}${zone("Tuonela",p.tuonela||[],ids)}</div>`;
+}
+function inspect(id){for(let p of state.players)for(let z of ["hand","living","tuonela","memory","relics"]){let c=p[z]?.find(x=>x.id===id);if(c){let d=def(c),reason=p===state.players[local]?unavailableReason(c):"";$("#detail").innerHTML=`<button class="close">Close</button><h2>${E(c.name)}</h2><p>${E(d.type)} · Cost ${d.cost}</p>${d.power?`<p>Power ${d.power} · Health ${d.health}</p>`:""}${d.fortitude?`<p>Fortitude ${d.fortitude}</p>`:""}<p>${E(text(c))||"<i>No ability — vanilla.</i>"}</p><p>${E(statuses(c))}</p>${reason?`<p><strong>Not currently playable:</strong> ${E(reason)}</p>`:""}`;$("#detail").classList.add("open");return}}}
+function render(){
+ const ctl=document.querySelector("#playtest-controls");
+ if(ctl){
+   let ra,la=[],routeErr="";
+   try{ra=K.responseActor(state);la=K.legalActions(state,ra)||[]}catch(err){routeErr=String(err?.message||err)}
+   const ri=routeErr?-1:actorIndex(ra), mine=ri===local;
+   ctl.querySelector("#ai-state").textContent=aiBusy?"AI thinking…":(K.isTerminal(state)?"Game over":mine?"YOUR TURN":"AI TURN");
+   ctl.querySelector("#diag").textContent=routeErr?`ROUTING ERROR: ${routeErr}`:`Actor ${state.players[ri]?.faction||ra} · ${PHASES[state.phase]} · ${la.length} legal · ${la.map(a=>a.type).join(",")}`;
+   ctl.querySelector("#ui-log").innerHTML=uiLog.slice(-10).reverse().map(x=>`<div>${E(x)}</div>`).join("");
+ }
+ const end=document.querySelector("#endgame");if(end){const terminal=K.isTerminal(state);end.classList.toggle("open",terminal);if(terminal)end.querySelector(".result").textContent=state.winner?`${state.winner} wins`:(state.result||"Game complete");}
+ let opp=1-local;$("#opp").innerHTML=renderSide(opp,false);$("#you").innerHTML=renderSide(local,true);$("#conflict").innerHTML=[0,1,2,3,4].map(n=>`<span class="pip ${state.conflict===n?"on":""}">${n}</span>`).join("");$("#sampo").innerHTML=`<b>${E(state.sampo?.state||"UNFORGED")}</b><br><small>${state.sampo?.controller?`Controlled by ${E(state.sampo.controller)}`:"Uncontrolled"} · Forge ${state.players.map(p=>`${E(p.faction)} ${p.forge||0}/3`).join(" / ")}</small>`;$("#shards").innerHTML=["Living","Waters","Tuonela"].map(x=>`<span class="shard ${state.shards?.[x]?"owned":""}">${x}<br>${E(state.shards?.[x]||"—")}</span>`).join("");
+ let acts=selected?selectedActions():globalActions(),ab=$("#actions");if(ab)ab.onclick=e=>{if(e.target.closest("[data-clear]")){selected=null;render();return}let b=e.target.closest("[data-act]");if(!b)return;let a=acts[+b.dataset.act];try{uiLog.push(`You: ${actionLabel(a)}`);state=K.applyAction(state,local,a);selected=null;render();queueMicrotask(driveAI)}catch(x){alert(x.message)}};
+ document.querySelectorAll("#you [data-id]").forEach(x=>x.onclick=()=>chooseSource(x.dataset.id));
+ document.querySelectorAll("#opp [data-id]").forEach(x=>x.onclick=()=>inspect(x.dataset.id));
+ $("#detail").onclick=e=>{if(e.target.closest(".close"))$("#detail").classList.remove("open")}}
+startGame("Kalevala","Kalevala");
+queueMicrotask(()=>{const ng=document.querySelector("#new-game"),rs=document.querySelector("#restart"),retry=document.querySelector("#retry-ai");const go=()=>startGame(document.querySelector("#human-faction").value,document.querySelector("#starter").value);if(ng)ng.onclick=go;if(rs)rs.onclick=go;if(retry)retry.onclick=()=>queueMicrotask(driveAI);});
+
+return __exports;})();
+})();
+</script></body></html>
